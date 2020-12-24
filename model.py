@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from tqdm import tqdm
 
 from lattice import SquareLattice
 
@@ -25,6 +26,8 @@ class PandemicModel:
         Number of days (i.e. time steps) that nodes remains infected.
     infected_are_immune: bool
         Whether or not nodes which have previously been infected are flagged as immune.
+    travel_rate: (int, float)
+        Number of 'travel' events (which are random swaps of nodes) per update.
 
     Notes
     -----
@@ -44,6 +47,7 @@ class PandemicModel:
         initial_infections=1,
         infection_duration=21,
         infected_are_immune=False,
+        travel_rate=0,
     ):
         # For now, just check that the lattice is a SquareLattice
         if type(lattice) != SquareLattice:
@@ -56,6 +60,7 @@ class PandemicModel:
         self.initial_infections = initial_infections
         self.infection_duration = infection_duration
         self.infected_are_immune = infected_are_immune
+        self.travel_rate = travel_rate
 
         # Initialise the rng (uses known default seed)
         self.seed_rng()
@@ -146,6 +151,18 @@ class PandemicModel:
         if type(new_flag) is not bool:
             raise ValueError("Please enter True/False for infected_are_immune.")
         self._infected_are_immune = new_flag
+
+    @property
+    def travel_rate(self):
+        """Number of 'travel' events (which are random swaps of nodes) per update."""
+        return self._travel_rate
+
+    @travel_rate.setter
+    def travel_rate(self, new_value):
+        """Setter for travel_rate. Raises ValueError if input is less than 0."""
+        if new_value < 0:
+            raise ValueError("Please enter an number of journeys of 0 or greater")
+        self._travel_rate = new_value
 
     # ----------------------------------------------------------------------------------------
     #                                                                  | Readonly properties |
@@ -243,11 +260,23 @@ class PandemicModel:
 
         return
 
+    def _swap_nodes(self):
+        """Swap a random pair of nodes."""
+        i_travel = self._rng.choice(
+            range(self.lattice.n_nodes), size=(2 * self.travel_rate), replace=False
+        )
+        self._state[i_travel] = self._state[np.flip(i_travel)]
+        self._immune[i_travel] = self._immune[np.flip(i_travel)]
+        return
+
     def _update(self):
         """Performs a single update of the model."""
         # Update array of immune nodes with those that are about to lose their infection
         if self.infected_are_immune:
             np.logical_or(self._immune, (self._state == 1), out=self._immune)
+
+        if self.travel_rate > 0:
+            self._swap_nodes()
 
         # Update state by reducing the 'days' counter
         # TODO: make this optional to retain simple on/off model?
@@ -279,15 +308,14 @@ class PandemicModel:
         return
 
     def evolve(self, n_days):
-        """Evolves the model for `n_days` iterations.
+        """Evolves the model for `n_days` iterations. Displays progress bar.
 
         Inputs
         ------
         n_days: int
             Number of updates.
         """
-
-        for t in range(n_days):
+        for t in tqdm(range(n_days), desc="Days"):
             self._update()
 
         return
@@ -299,42 +327,40 @@ class PandemicModel:
     #                                                                        | Visualisation |
     #                                                                        -----------------
 
-    def plot_evolution(self, critical_threshold=None):
+    def plot_evolution(self, critical_threshold=0.1):
         """Plots the time evolution of the model.
 
         Inputs
         ------
-        critical_threshold: float (optional)
+        critical_threshold: float
             The threshold infected fraction which we're hoping to avoid crossing.
-            If given, lets the user know the number of days spent above this threshold.
         """
         fig, ax = plt.subplots()
         ax.set_title("Time evolution of the pandemic")
-        ax.set_xlabel("Days")
+        ax.set_xlabel("Days since patient 0")
         ax.set_ylabel("Infected fraction")
-        ax.plot(self.infected_frac, color="b", label="infected fraction")
+        ax.plot(self.infected_frac, color="b", label="model")
 
-        if critical_threshold is not None:
-            if critical_threshold < 0 and critical_threshold > 1:
-                raise ValueError("Please provide a critical threshold between 0 and 1")
-            ax.axhline(
-                critical_threshold,
-                linestyle="--",
-                color="r",
-                label="critical threshold",
-            )
-            days = len(self.infected_frac)
-            days_above_thresh = sum(np.array(self.infected_frac) > critical_threshold)
-            print(
-                f"{days_above_thresh}/{days} days spent above the critical threshold of {critical_threshold}"
-            )
+        if critical_threshold < 0 and critical_threshold > 1:
+            raise ValueError("Please provide a critical threshold between 0 and 1")
+        ax.axhline(
+            critical_threshold,
+            linestyle="--",
+            color="r",
+            label="critical threshold",
+        )
+        days = len(self.infected_frac)
+        days_above_thresh = sum(np.array(self.infected_frac) > critical_threshold)
+        print(
+            f"{days_above_thresh}/{days} days spent above the critical threshold of {critical_threshold}"
+        )
 
         ax.legend()
         fig.tight_layout()
         plt.show()
         return
 
-    def animate(self, n_days, interval=50):
+    def animate(self, n_days, interval=10):
         """Evolves the model for `n_steps` iterations and produces an animation.
 
         Inputs
@@ -357,17 +383,19 @@ class PandemicModel:
             cmap=mpl.colors.ListedColormap(
                 ["#66666600", "#666666"]
             ),  # [transparent, grey]
+            norm=mpl.colors.Normalize(vmin=0, vmax=1),
             zorder=1,
         )
 
         def loop(t):
+            if t == 0:  # otherwise the animation starts a frame late in Jupyter...
+                return (image, overlay)
             self._update()
             image.set_data(self.state)
             overlay.set_data(self.immune)
-            return (image, overlay)
+            return image, overlay
 
         animation = mpl.animation.FuncAnimation(
-            fig, loop, frames=n_days, interval=50, repeat=False, blit=True
+            fig, loop, frames=n_days + 1, interval=interval, repeat=False, blit=True
         )
-        plt.show()
-        return
+        return animation

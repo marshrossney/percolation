@@ -6,24 +6,41 @@ from sys import argv
 from model import PandemicModel
 from lattice import SquareLattice
 
+L = 100
+tp = 0.1
+vf = 0.1
+ii = 1
+dur = 21
+inim = True
+tr = 5
+days = 100
 
-lattice = SquareLattice(length=100)
-model = PandemicModel(lattice, transmission_prob=0.3, vaccine_frac=0.35, initial_infections=10, infection_duration=21, infected_are_immune=True)
 
-if "ani" in argv:
-    model.animate(n_days=365)
+lattice = SquareLattice(length=L)
+model = PandemicModel(
+    lattice,
+    transmission_prob=tp,
+    vaccine_frac=vf,
+    initial_infections=ii,
+    infection_duration=dur,
+    infected_are_immune=inim,
+    travel_rate=tr,
+)
+
+if "time" in argv:
+    t1 = time()
+    model.evolve(n_days=days)
+    t2 = time()
+    print(f"time: {t2 - t1} seconds")
 
 elif "help" in argv:
     print(help(model))
 
 elif "plot" in argv:
-    model.evolve(n_days=365)
-    model.plot_evolution(critical_threshold=0.1)
+    model.evolve(n_days=days)
+    model.plot_evolution()
+
 
 else:
-    t1 = time()
-    model.evolve(n_days=365)
-    t2 = time()
-    print(f"time: {t2 - t1} seconds")
-
-
+    ani = model.animate(n_days=days)
+    plt.show()

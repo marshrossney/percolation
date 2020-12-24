@@ -43,7 +43,7 @@ class SquareLattice:
         """Array containing the coordinates of the nearest neighbours for each node,
         in the lexicographic representation. The first dimension corresponds to lattice
         nodes in lexicographic representation. The second dimension of the array represents
-        the direction (right, left, up, down). 
+        the direction (right, left, up, down).
         """
         return self._neighbours
 
@@ -66,4 +66,3 @@ class SquareLattice:
     def lexi_to_cart(self, state_lexi):
         """Convert a state in 1d lexicographic representation to 2d Cartesian representation."""
         return state_lexi.reshape(self.length, self.length)
-
