@@ -16,11 +16,15 @@ class PandemicModel:
         The underlying lattice upon which we perform the simulation.
     transmission_prob: float
         The probability of an infected node passing the virus onto a neighbouring
-        uninfected (and non-vaccinated) node.
+        uninfected (and non-immune) node.
     vaccine_frac: float
-        The fraction of nodes that are flagged as 'vaccinated' against the virus.
+        The fraction of nodes that are initially flagged as immune against the virus.
     initial_infections: (int, float)
         The initial number or fraction of infected nodes.
+    infection_duration: int
+        Number of days (i.e. time steps) that nodes remains infected.
+    infected_are_immune: bool
+        Whether or not nodes which have previously been infected are flagged as immune.
 
     Notes
     -----
@@ -38,6 +42,8 @@ class PandemicModel:
         transmission_prob=0.25,
         vaccine_frac=0.0,
         initial_infections=1,
+        infection_duration=21,
+        infected_are_immune=False,
     ):
         # For now, just check that the lattice is a SquareLattice
         if type(lattice) != SquareLattice:
@@ -48,6 +54,8 @@ class PandemicModel:
         self.transmission_prob = transmission_prob
         self.vaccine_frac = vaccine_frac
         self.initial_infections = initial_infections
+        self.infection_duration = infection_duration
+        self.infected_are_immune = infected_are_immune
 
         # Initialise the rng (uses known default seed)
         self.seed_rng()
@@ -79,8 +87,8 @@ class PandemicModel:
     @property
     def vaccine_frac(self):
         """The fraction of the population who have been vaccinated against the virus. It is
-        assumed that the vaccine is 100% effective. Can also be seen as the number of frozen
-        nodes or defects in the lattice."""
+        assumed that the vaccine is 100% effective. Can also be seen as the fraction of
+        initially frozen nodes, or lattice defects."""
         return self._vaccine_frac
 
     @vaccine_frac.setter
@@ -114,6 +122,31 @@ class PandemicModel:
             )
         self._initial_infections = new_value
 
+    @property
+    def infection_duration(self):
+        """Number of days (i.e. time steps) that nodes remain infected after initially
+        contracting the virus."""
+        return self._infection_duration
+
+    @infection_duration.setter
+    def infection_duration(self, new_value):
+        """Setter for infection_duration. Raises ValueError if input is less than 1."""
+        if new_value < 1:
+            raise ValueError("Please enter an infection duration of 1 or more days." "")
+        self._infection_duration = new_value
+
+    @property
+    def infected_are_immune(self):
+        """Whether or not nodes which have previously been infected are flagged as immune."""
+        return self._infected_are_immune
+
+    @infected_are_immune.setter
+    def infected_are_immune(self, new_flag):
+        """Setter for infected_are_immune. Raises ValueError if input is not a bool."""
+        if type(new_flag) is not bool:
+            raise ValueError("Please enter True/False for infected_are_immune.")
+        self._infected_are_immune = new_flag
+
     # ----------------------------------------------------------------------------------------
     #                                                                  | Readonly properties |
     #                                                                  -----------------------
@@ -126,9 +159,16 @@ class PandemicModel:
 
     @property
     def state(self):
-        """Current state of the system, represented as a 2d boolean array where True means
-        the node is 'infected'."""
+        """Current state of the system, represented as a 2d integer array. Nodes which have
+        only just been infected take a value of `self.infection_duration`, and this count
+        decreases by one for each update. Zeros are interpreted as not being infected."""
         return self.lattice.lexi_to_cart(self._state)
+
+    @property
+    def immune(self):
+        """Currently immune nodes, represented as a 2d boolean array where True means the
+        node is immune."""
+        return self.lattice.lexi_to_cart(self._immune)
 
     @property
     def n_vaccinated(self):
@@ -143,19 +183,19 @@ class PandemicModel:
     @property
     def n_currently_infected(self):
         """Number of nodes that are currently infected."""
-        return sum(self._state)
-
-    @property
-    def r_rate(self):
-        """List of reproduction rates (number of transmissions per infected node) which is
-        appended to as the model is evolved forwards."""
-        return self._r_rate
+        return sum(self._state.astype(bool))
 
     @property
     def infected_frac(self):
         """List of fraction of nodes that are infected, which is appended to as the model
         is evolved forwards."""
         return self._infected_frac
+
+    @property
+    def new_infections(self):
+        """List of the number of new infections, which is appended to as the model is
+        evolved forwards."""
+        return self._new_infections
 
     # ----------------------------------------------------------------------------------------
     #                                                                              | Methods |
@@ -185,34 +225,42 @@ class PandemicModel:
         )
 
         # Create mask for vaccinated nodes with same shape as state
-        self._vaccinated = np.full(self.lattice.n_nodes, False)
-        self._vaccinated[self.i_vaccinated] = True
+        self._immune = np.full(self.lattice.n_nodes, False)
+        self._immune[self.i_vaccinated] = True
 
         # Generate state with initial infections (avoiding vaccinated nodes)
-        self._state = np.full(self.lattice.n_nodes, False)
+        self._state = np.full(self.lattice.n_nodes, 0)
         i_infected = self._rng.choice(
-            np.arange(self.lattice.n_nodes)[~self._vaccinated],
+            np.arange(self.lattice.n_nodes)[~self._immune],
             size=self.initial_infections,
             replace=False,
         )
-        self._state[i_infected] = True
+        self._state[i_infected] = self.infection_duration
 
-        # Reset time series'
-        self._r_rate = []
+        # Reset time series
         self._infected_frac = []
+        self._new_infections = []
 
         return
 
     def _update(self):
         """Performs a single update of the model."""
+        # Update array of immune nodes with those that are about to lose their infection
+        if self.infected_are_immune:
+            np.logical_or(self._immune, (self._state == 1), out=self._immune)
+
+        # Update state by reducing the 'days' counter
+        # TODO: make this optional to retain simple on/off model?
+        np.clip(self._state - 1, a_min=0, a_max=None, out=self._state)
+
         # Indices corresponding to neighbours of infected nodes
-        i_contacts = self.lattice.neighbours[self._state].flatten()
+        i_contacts = self.lattice.neighbours[self._state.astype(bool)].flatten()
 
         # Pull out contacts who have the potential to have the virus trasmitted to them
         i_potentials = i_contacts[
             np.logical_and(
-                ~self._state,  # neither already infected...
-                ~self._vaccinated,  # ...nor vaccinated
+                ~self._state.astype(bool),  # neither already infected...
+                ~self._immune.astype(bool),  # ...nor immune
             )[i_contacts]
         ]
 
@@ -222,13 +270,11 @@ class PandemicModel:
         )
 
         # Update state with new infections
-        self._state[i_transmissions] = True
+        self._state[i_transmissions] = self.infection_duration
 
         # Update properties of the system
-        self._r_rate.append(
-            len(i_transmissions) / (self.n_currently_infected - len(i_transmissions))
-        )
         self._infected_frac.append(self.n_currently_infected / self.lattice.n_nodes)
+        self._new_infections.append(len(i_transmissions))
 
         return
 
@@ -252,22 +298,41 @@ class PandemicModel:
     # ----------------------------------------------------------------------------------------
     #                                                                        | Visualisation |
     #                                                                        -----------------
-    def plot_evolution(self):
-        """Plot the evolution of the model."""
+
+    def plot_evolution(self, critical_threshold=None):
+        """Plots the time evolution of the model.
+
+        Inputs
+        ------
+        critical_threshold: float (optional)
+            The threshold infected fraction which we're hoping to avoid crossing.
+            If given, lets the user know the number of days spent above this threshold.
+        """
         fig, ax = plt.subplots()
+        ax.set_title("Time evolution of the pandemic")
         ax.set_xlabel("Days")
         ax.set_ylabel("Infected fraction")
         ax.plot(self.infected_frac, color="b", label="infected fraction")
-        
-        ax2 = ax.twinx()
-        ax2.set_ylabel("Reproduction rate")
-        ax2.plot(self.r_rate, color="r", label="r rate")
 
-        fig.legend()
+        if critical_threshold is not None:
+            if critical_threshold < 0 and critical_threshold > 1:
+                raise ValueError("Please provide a critical threshold between 0 and 1")
+            ax.axhline(
+                critical_threshold,
+                linestyle="--",
+                color="r",
+                label="critical threshold",
+            )
+            days = len(self.infected_frac)
+            days_above_thresh = sum(np.array(self.infected_frac) > critical_threshold)
+            print(
+                f"{days_above_thresh}/{days} days spent above the critical threshold of {critical_threshold}"
+            )
+
+        ax.legend()
         fig.tight_layout()
         plt.show()
         return
-
 
     def animate(self, n_days, interval=50):
         """Evolves the model for `n_steps` iterations and produces an animation.
@@ -282,12 +347,24 @@ class PandemicModel:
         fig, ax = plt.subplots()
         ax.set_axis_off()
 
-        im = ax.imshow(self.state)
+        image = ax.imshow(
+            self.state,
+            norm=mpl.colors.Normalize(vmin=0, vmax=self.infection_duration),
+            zorder=0,
+        )
+        overlay = ax.imshow(
+            self.immune,
+            cmap=mpl.colors.ListedColormap(
+                ["#66666600", "#666666"]
+            ),  # [transparent, grey]
+            zorder=1,
+        )
 
         def loop(t):
             self._update()
-            im.set_data(self.state)
-            return (im,)
+            image.set_data(self.state)
+            overlay.set_data(self.immune)
+            return (image, overlay)
 
         animation = mpl.animation.FuncAnimation(
             fig, loop, frames=n_days, interval=50, repeat=False, blit=True

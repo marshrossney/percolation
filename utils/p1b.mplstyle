@@ -1,1 +1,5 @@
-image.cmap: magma
+font.size: 16
+legend.fontsize: 14
+lines.linestyle: -
+image.cmap: YlOrRd
+savefig.dpi: 100
