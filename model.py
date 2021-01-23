@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from tqdm import tqdm
+from sys import maxsize
 
 from lattice import SquareLattice
 
@@ -35,17 +36,15 @@ class PandemicModel:
         that includes a set of nodes and edges (a graph) would be valid in
         principle. This may require further modifications to this class if the
         number of vertices attached to each node varies between nodes.
-
-
     """
 
     def __init__(
         self,
         lattice,
-        transmission_prob=0.25,
+        transmission_prob=1.0,
         vaccine_frac=0.0,
         initial_infections=1,
-        infection_duration=21,
+        infection_duration=maxsize,
         infected_are_immune=False,
         travel_rate=0,
     ):
@@ -165,8 +164,8 @@ class PandemicModel:
         self._travel_rate = new_value
 
     # ----------------------------------------------------------------------------------------
-    #                                                                  | Readonly properties |
-    #                                                                  -----------------------
+    #                                                                 | Read-only properties |
+    #                                                                 ------------------------
 
     @property
     def lattice(self):
@@ -193,72 +192,38 @@ class PandemicModel:
         return int(self.vaccine_frac * self.lattice.n_nodes)
 
     @property
-    def i_vaccinated(self):
-        """1d array of indices corresponding to vaccinated nodes."""
-        return self._i_vaccinated
+    def infected_time_series(self):
+        """Numpy array containing the fraction of nodes that are infected, which is appended
+        to as the model is evolved forwards."""
+        return np.array(self._infected_time_series) / self.lattice.n_nodes
 
     @property
-    def n_currently_infected(self):
-        """Number of nodes that are currently infected."""
-        return sum(self._state.astype(bool))
+    def susceptible_time_series(self):
+        """Numpy array containing the fraction of nodes that are susceptible to infection,
+        which is appended to as the model is evolved forwards."""
+        return np.array(self._susceptible_time_series) / self.lattice.n_nodes
 
     @property
-    def infected_frac(self):
-        """List of fraction of nodes that are infected, which is appended to as the model
-        is evolved forwards."""
-        return self._infected_frac
-
-    @property
-    def new_infections(self):
-        """List of the number of new infections, which is appended to as the model is
-        evolved forwards."""
-        return self._new_infections
+    def immune_time_series(self):
+        """Numpy array containing the of fraction of nodes that are immune to infection,
+        either because they are vaccinated or because they have previously had the virus.
+        The list is appended to as the model is evolved forwards."""
+        return np.array(self._immune_time_series) / self.lattice.n_nodes
 
     # ----------------------------------------------------------------------------------------
-    #                                                                              | Methods |
-    #                                                                              -----------
+    #                                                                    | Protected methods |
+    #                                                                    ---------------------
 
-    def seed_rng(self, seed=1):
-        """Resets the random number generator with a known seed. For reproducibility."""
-        self._rng = np.random.default_rng(seed)
-        return
-
-    def init_state(self):
-        """Initialises the state of the model. This will set the state to contain precisely
-        `self.initial_infections` infected nodes. The locations of the vaccinated nodes will
-        also be reset. The locations of the infected nodes are randomly selected from the non-
-        vaccinated nodes.
-
-        Notes
-        -----
-        If you want to reproduce the previous simulation, you will need to reseed the
-        random number generator using the `seed_rng` method *before* resetting the state.
-        """
-        # Generate vaccinated nodes
-        self._i_vaccinated = self._rng.choice(
-            np.arange(self.lattice.n_nodes),
-            size=self.n_vaccinated,  # empty array if zero!
-            replace=False,
+    def _append_time_series(self):
+        """Helper function that appends information about the current state of the model to
+        lists containing time series'."""
+        n_infected = sum(self._state.astype(bool))
+        n_immune = sum(self._immune.astype(bool))
+        self._infected_time_series.append(n_infected)
+        self._immune_time_series.append(n_immune)
+        self._susceptible_time_series.append(
+            self.lattice.n_nodes - n_infected - n_immune
         )
-
-        # Create mask for vaccinated nodes with same shape as state
-        self._immune = np.full(self.lattice.n_nodes, False)
-        self._immune[self.i_vaccinated] = True
-
-        # Generate state with initial infections (avoiding vaccinated nodes)
-        self._state = np.full(self.lattice.n_nodes, 0)
-        i_infected = self._rng.choice(
-            np.arange(self.lattice.n_nodes)[~self._immune],
-            size=self.initial_infections,
-            replace=False,
-        )
-        self._state[i_infected] = self.infection_duration
-
-        # Reset time series
-        self._infected_frac = []
-        self._new_infections = []
-
-        return
 
     def _swap_nodes(self):
         """Swap a random pair of nodes."""
@@ -267,7 +232,6 @@ class PandemicModel:
         )
         self._state[i_travel] = self._state[np.flip(i_travel)]
         self._immune[i_travel] = self._immune[np.flip(i_travel)]
-        return
 
     def _update(self):
         """Performs a single update of the model."""
@@ -279,7 +243,6 @@ class PandemicModel:
             self._swap_nodes()
 
         # Update state by reducing the 'days' counter
-        # TODO: make this optional to retain simple on/off model?
         np.clip(self._state - 1, a_min=0, a_max=None, out=self._state)
 
         # Indices corresponding to neighbours of infected nodes
@@ -301,11 +264,54 @@ class PandemicModel:
         # Update state with new infections
         self._state[i_transmissions] = self.infection_duration
 
-        # Update properties of the system
-        self._infected_frac.append(self.n_currently_infected / self.lattice.n_nodes)
-        self._new_infections.append(len(i_transmissions))
+        # Append the latest data to the time series'
+        self._append_time_series()
 
+    # ----------------------------------------------------------------------------------------
+    #                                                                       | Public methods |
+    #                                                                       ------------------
+
+    def seed_rng(self, seed=1):
+        """Resets the random number generator with a known seed. For reproducibility."""
+        self._rng = np.random.default_rng(seed)
         return
+
+    def init_state(self):
+        """Initialises the state of the model. This will set the state to contain precisely
+        `self.initial_infections` infected nodes. The locations of the vaccinated nodes will
+        also be reset. The locations of the infected nodes are randomly selected from the non-
+        vaccinated nodes.
+
+        Notes
+        -----
+        If you want to reproduce the previous simulation, you will need to reseed the
+        random number generator using the `seed_rng` method *before* resetting the state.
+        """
+        # Generate vaccinated nodes
+        i_vaccinated = self._rng.choice(
+            np.arange(self.lattice.n_nodes),
+            size=self.n_vaccinated,  # empty array if zero!
+            replace=False,
+        )
+
+        # Create mask for vaccinated nodes with same shape as state
+        self._immune = np.full(self.lattice.n_nodes, False)
+        self._immune[i_vaccinated] = True
+
+        # Generate state with initial infections (avoiding vaccinated nodes)
+        self._state = np.full(self.lattice.n_nodes, 0)
+        i_infected = self._rng.choice(
+            np.arange(self.lattice.n_nodes)[~self._immune],
+            size=self.initial_infections,
+            replace=False,
+        )
+        self._state[i_infected] = self.infection_duration
+
+        # Reset time series' to empty lists then append initial conditions
+        self._infected_time_series = []
+        self._susceptible_time_series = []
+        self._immune_time_series = []
+        self._append_time_series()
 
     def evolve(self, n_days):
         """Evolves the model for `n_days` iterations. Displays progress bar.
@@ -318,8 +324,6 @@ class PandemicModel:
         for t in tqdm(range(n_days), desc="Days"):
             self._update()
 
-        return
-
     def evolve_ensemble(self, n_days):
         raise NotImplementedError
 
@@ -330,37 +334,75 @@ class PandemicModel:
     def plot_evolution(self, critical_threshold=0.1):
         """Plots the time evolution of the model.
 
+        More specifically, plots the evolution of the fraction of nodes that are (a) susceptible
+        to infection, (b) infected, and (c) immune from the virus due to either being vaccinated
+        or having previously had it.
+
+        Also plots a horizontal line representing a critical threshold of the infected fraction,
+        which we would prefer to avoid acrossing.
+
         Inputs
         ------
         critical_threshold: float
-            The threshold infected fraction which we're hoping to avoid crossing.
+            The threshold infected fraction above which bad things happen...
         """
+        if critical_threshold < 0 and critical_threshold > 1:
+            raise ValueError("Please provide a critical threshold between 0 and 1")
+
         fig, ax = plt.subplots()
         ax.set_title("Time evolution of the pandemic")
         ax.set_xlabel("Days since patient 0")
-        ax.set_ylabel("Infected fraction")
-        ax.plot(self.infected_frac, color="b", label="model")
+        ax.set_ylabel("Fraction of nodes")
+        ax.plot(
+            self.susceptible_time_series,
+            color="blue",
+            label="susceptible",
+        )
+        ax.plot(
+            self.infected_time_series,
+            color="red",
+            label="infected",
+        )
+        ax.plot(
+            self.immune_time_series,
+            color="grey",
+            label="immune",
+        )
 
-        if critical_threshold < 0 and critical_threshold > 1:
-            raise ValueError("Please provide a critical threshold between 0 and 1")
+        # Plot horizontal line at critical threshold
         ax.axhline(
             critical_threshold,
             linestyle="--",
-            color="r",
+            color="orange",
             label="critical threshold",
         )
-        days = len(self.infected_frac)
-        days_above_thresh = sum(np.array(self.infected_frac) > critical_threshold)
-        print(
-            f"{days_above_thresh}/{days} days spent above the critical threshold of {critical_threshold}"
+
+        # Shade area between infections curve and critical threshold
+        n_days = len(self.infected_time_series)
+        ax.fill_between(
+            x=np.arange(n_days),
+            y1=self.infected_time_series,
+            y2=np.full(n_days, critical_threshold),
+            where=self.infected_time_series > critical_threshold,
+            color="orange",
+            alpha=0.2,
         )
+
+        # Print some useful diagonstics
+        days_above_thresh = sum(self.infected_time_series > critical_threshold)
+        print(
+            f"{days_above_thresh}/{n_days} days spent above the critical threshold of {critical_threshold}"
+        )
+        area_above_thresh = sum(
+            self.infected_time_series[self.infected_time_series > critical_threshold]
+        )
+        print(f"Area above critical threshold: {area_above_thresh}")
 
         ax.legend()
         fig.tight_layout()
         plt.show()
-        return
 
-    def animate(self, n_days, interval=10):
+    def animate(self, n_days, interval=20):
         """Evolves the model for `n_steps` iterations and produces an animation.
 
         Inputs

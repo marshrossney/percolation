@@ -1,15 +1,20 @@
 import numpy as np
 
 MIN_LATTICE_LENGTH = 2
-MAX_LATTICE_LENGTH = 100
+MAX_LATTICE_LENGTH = 200
 
 
 class SquareLattice:
-    """"""
+    """Class containing attributes and methods related to a square lattice in which nodes are
+    coupled to their nearest neighbours along the lattice axes (i.e. 'up' and 'down', but not
+    along the diagonals)."""
 
     def __init__(self, length: int):
         self.length = length
-        self._cache_neighbours()
+
+    # ----------------------------------------------------------------------------------------
+    #                                                                     | Data descriptors |
+    #                                                                     --------------------
 
     @property
     def length(self):
@@ -26,6 +31,11 @@ class SquareLattice:
                 f"Please enter an integer lattice length beween {MIN_LATTICE_LENGTH} and {MAX_LATTICE_LENGTH}"
             )
         self._length = new_value
+        self._cache_neighbours()  # must update neighbour array if length modified!
+
+    # ----------------------------------------------------------------------------------------
+    #                                                                 | Read-only properties |
+    #                                                                 ------------------------
 
     @property
     def n_nodes(self):
@@ -47,6 +57,10 @@ class SquareLattice:
         """
         return self._neighbours
 
+    # ----------------------------------------------------------------------------------------
+    #                                                                    | Protected methods |
+    #                                                                    ---------------------
+
     def _cache_neighbours(self):
         """Cache the array of neighbours to avoid repeated calculations."""
         lexi_like_cart = np.arange(self.n_nodes).reshape(self.length, self.length)
@@ -63,6 +77,16 @@ class SquareLattice:
         self._neighbours = neighbours.transpose()  # shape (n_nodes, 4)
         return
 
+    # ----------------------------------------------------------------------------------------
+    #                                                                       | Public methods |
+    #                                                                       ------------------
+
     def lexi_to_cart(self, state_lexi):
-        """Convert a state in 1d lexicographic representation to 2d Cartesian representation."""
+        """Convert a state in 1d lexicographic representation to 2d Cartesian representation.
+
+        Inputs
+        ------
+        state_lexi: numpy.ndarray
+            One dimensional array containing the state in lexicographic representation.
+        """
         return state_lexi.reshape(self.length, self.length)
