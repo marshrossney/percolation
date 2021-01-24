@@ -1,7 +1,7 @@
 import numpy as np
 
 MIN_LATTICE_LENGTH = 2
-MAX_LATTICE_LENGTH = 200
+MAX_LATTICE_LENGTH = 1000
 
 
 class SquareLattice:

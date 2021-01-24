@@ -6,6 +6,8 @@ from sys import maxsize
 
 from lattice import SquareLattice
 
+from time import time
+
 plt.style.use("utils/p1b.mplstyle")
 
 
@@ -209,7 +211,7 @@ class PandemicModel:
         either because they are vaccinated or because they have previously had the virus.
         The list is appended to as the model is evolved forwards."""
         return np.array(self._immune_time_series) / self.lattice.n_nodes
-
+    
     # ----------------------------------------------------------------------------------------
     #                                                                    | Protected methods |
     #                                                                    ---------------------
@@ -217,8 +219,8 @@ class PandemicModel:
     def _append_time_series(self):
         """Helper function that appends information about the current state of the model to
         lists containing time series'."""
-        n_infected = sum(self._state.astype(bool))
-        n_immune = sum(self._immune.astype(bool))
+        n_infected = self._state.astype(bool).sum()
+        n_immune = self._immune.astype(bool).sum()
         self._infected_time_series.append(n_infected)
         self._immune_time_series.append(n_immune)
         self._susceptible_time_series.append(
@@ -226,15 +228,16 @@ class PandemicModel:
         )
 
     def _swap_nodes(self):
-        """Swap a random pair of nodes."""
+        """Swap random pair of nodes. The number of pairs is given by `travel_rate`."""
         i_travel = self._rng.choice(
-            range(self.lattice.n_nodes), size=(2 * self.travel_rate), replace=False
+            self.lattice.n_nodes, size=(2 * self.travel_rate), replace=False
         )
         self._state[i_travel] = self._state[np.flip(i_travel)]
         self._immune[i_travel] = self._immune[np.flip(i_travel)]
 
     def _update(self):
         """Performs a single update of the model."""
+
         # Update array of immune nodes with those that are about to lose their infection
         if self.infected_are_immune:
             np.logical_or(self._immune, (self._state == 1), out=self._immune)
@@ -313,15 +316,22 @@ class PandemicModel:
         self._immune_time_series = []
         self._append_time_series()
 
-    def evolve(self, n_days):
-        """Evolves the model for `n_days` iterations. Displays progress bar.
+    def evolve(self, n_days, display_progress_bar=True):
+        """Evolves the model for `n_days` iterations.
 
         Inputs
         ------
         n_days: int
             Number of updates.
+        display_progress_bar: bool (optional)
+            Flag indicating whether or not to display a progress bar. Default: True.
         """
-        for t in tqdm(range(n_days), desc="Days"):
+        if display_progress_bar:
+            generator = tqdm(range(n_days), desc="Days")
+        else:
+            generator = range(n_days)
+
+        for t in generator:
             self._update()
 
     def evolve_ensemble(self, n_days):
@@ -389,20 +399,20 @@ class PandemicModel:
         )
 
         # Print some useful diagonstics
-        days_above_thresh = sum(self.infected_time_series > critical_threshold)
+        days_above_thresh = (self.infected_time_series > critical_threshold).sum()
         print(
             f"{days_above_thresh}/{n_days} days spent above the critical threshold of {critical_threshold}"
         )
-        area_above_thresh = sum(
+        area_above_thresh = (
             self.infected_time_series[self.infected_time_series > critical_threshold]
-        )
+        ).sum()
         print(f"Area above critical threshold: {area_above_thresh}")
 
         ax.legend()
         fig.tight_layout()
         plt.show()
 
-    def animate(self, n_days, interval=20):
+    def animate(self, n_days, interval=25):
         """Evolves the model for `n_steps` iterations and produces an animation.
 
         Inputs
@@ -428,6 +438,11 @@ class PandemicModel:
             norm=mpl.colors.Normalize(vmin=0, vmax=1),
             zorder=1,
         )
+        day_counter = ax.annotate(
+                text=f"Day 0",
+                xy=(1, 0),
+                xycoords="axes fraction",
+        )
 
         def loop(t):
             if t == 0:  # otherwise the animation starts a frame late in Jupyter...
@@ -435,7 +450,8 @@ class PandemicModel:
             self._update()
             image.set_data(self.state)
             overlay.set_data(self.immune)
-            return image, overlay
+            day_counter.set_text(f"Day {t}")
+            return image, overlay, day_counter
 
         animation = mpl.animation.FuncAnimation(
             fig, loop, frames=n_days + 1, interval=interval, repeat=False, blit=True
