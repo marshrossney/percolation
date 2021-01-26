@@ -9,7 +9,8 @@ class SquareLattice:
     coupled to their nearest neighbours along the lattice axes (i.e. 'up' and 'down', but not
     along the diagonals)."""
 
-    def __init__(self, length: int):
+    def __init__(self, length: int, periodic: bool = True):
+        self.periodic = periodic
         self.length = length
 
     # ----------------------------------------------------------------------------------------
@@ -62,20 +63,42 @@ class SquareLattice:
     #                                                                    ---------------------
 
     def _cache_neighbours(self):
-        """Cache the array of neighbours to avoid repeated calculations."""
+        """Cache the array of neighbours to avoid repeated calculations.
+
+        Notes:
+        ------
+        In the case of non-periodic boundaries, the neighbours that would otherwise wrap
+        around the lattice are set to be the indices of the nodes themselves (i.e. they act
+        as their own neighbour). This doesn't lead to strange behaviour since, after taking
+        the list of neighbours of infected nodes, we then discard all those that are already
+        infected.
+        """
         lexi_like_cart = np.arange(self.n_nodes).reshape(self.length, self.length)
         neighbours = np.zeros((self.n_neighbours, self.n_nodes), dtype=int)
 
         for i, shift, axis in zip(
-            range(self.n_neighbours),  # number of neighbour arrays
+            range(4),  # number of neighbours per node
             (1, -1, 1, -1),  # positive or negative shifts
             (0, 0, 1, 1),  # axes for shifts
         ):
             # Roll the cartesian array and flatten for 1d array of neighbours
             neighbours[i] = np.roll(lexi_like_cart, shift, axis=axis).flatten()
 
+        if not self.periodic:
+            boundary_nodes_mask = (
+                lexi_like_cart // self.length == 0,  # top row
+                lexi_like_cart // self.length == self.length - 1,  # bottom row
+                lexi_like_cart % self.length == 0,  # left column
+                lexi_like_cart % self.length == self.length - 1,  # right column
+            )
+            for i, mask in enumerate(boundary_nodes_mask):
+                np.putmask(
+                    neighbours[i],
+                    mask=mask.flatten(),  # pull out one row/col
+                    values=np.arange(self.n_nodes),  # equivalent to zero shift
+                )
+
         self._neighbours = neighbours.transpose()  # shape (n_nodes, 4)
-        return
 
     # ----------------------------------------------------------------------------------------
     #                                                                       | Public methods |

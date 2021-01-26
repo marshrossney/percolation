@@ -279,20 +279,45 @@ class PandemicModel:
         self._rng = np.random.default_rng(seed)
         return
 
-    def init_state(self):
+    def init_state(self, initial_shape="nucleus", nucleus_size=1):
         """Initialises the state of the model. This will set the state to contain precisely
         `self.initial_infections` infected nodes. The locations of the vaccinated nodes will
         also be reset. The locations of the infected nodes are randomly selected from the non-
         vaccinated nodes.
+
+        Inputs:
+        -------
+        initial_shape: str
+            The shape of the initially infected nodes. Either 'nucleus' for a square nucleus
+            in the center of the lattice, or 'line' for a single line of infected nodes on the
+            leftmost vertical edge of the lattice.
+        nucleus_size: int
+            Linear size of the initial nucleus of infections, i.e. side length of the square.
 
         Notes
         -----
         If you want to reproduce the previous simulation, you will need to reseed the
         random number generator using the `seed_rng` method *before* resetting the state.
         """
-        # Generate vaccinated nodes
+        if initial_shape not in ("nucleus", "line"):
+            raise ValueError("Please enter either 'nucleus' or 'line' for initial_shape")
+        if (nucleus_size ** 2) / self.lattice.n_nodes + self.vaccine_frac > 1:
+            raise ValueError(f"Not enough nodes on the lattice to support a nucleus of this size with the vaccine fraction provided")
+
+        # Generate initial infections
+        state_cart = np.full((self.lattice.length, self.lattice.length), 0)
+        if initial_shape == "line":
+            state_cart[:, 0] = self.infection_duration  # left column
+        else:
+            corner = self.lattice.length // 2 - nucleus_size // 2
+            i_nucl = slice(corner, corner + nucleus_size)
+            state_cart[i_nucl, i_nucl] = self.infection_duration
+        self._state = state_cart.flatten()
+
+
+        # Generate vaccinated nodes, avoiding the initially infected ones
         i_vaccinated = self._rng.choice(
-            np.arange(self.lattice.n_nodes),
+            np.arange(self.lattice.n_nodes)[~self._state.astype(bool)],
             size=self.n_vaccinated,  # empty array if zero!
             replace=False,
         )
@@ -300,15 +325,6 @@ class PandemicModel:
         # Create mask for vaccinated nodes with same shape as state
         self._immune = np.full(self.lattice.n_nodes, False)
         self._immune[i_vaccinated] = True
-
-        # Generate state with initial infections (avoiding vaccinated nodes)
-        self._state = np.full(self.lattice.n_nodes, 0)
-        i_infected = self._rng.choice(
-            np.arange(self.lattice.n_nodes)[~self._immune],
-            size=self.initial_infections,
-            replace=False,
-        )
-        self._state[i_infected] = self.infection_duration
 
         # Reset time series' to empty lists then append initial conditions
         self._infected_time_series = []
