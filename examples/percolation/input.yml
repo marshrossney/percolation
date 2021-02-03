@@ -1,0 +1,13 @@
+# Lattice
+length: 100
+periodic: false
+
+# Model
+transmission-prob: 1.0
+vaccine-frac: 0.4
+
+# Initialisation
+initial-shape: line
+
+# Evolution
+n-days: 200
