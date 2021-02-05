@@ -28,10 +28,16 @@ class PandemicModel:
         and is no longer able to spread the infection.
     recovered_are_immune: bool
         Nodes which have recovered from the infection are flagged as immune.
-    travel_rate: (int, float)
-        Number of 'travel' events (which are random swaps of nodes) per update.
-    outpath: str
-        Path to directory in which to save output data, figures, animations.
+    travel_prob: float
+        Probability for any given node to 'travel', which is to shuffle positions
+        with all other travelling nodes at any given time.
+    nucleus_size: int
+        Linear size (side length) of the initial nucleus (square) of infected nodes.
+        Alternatively, a negative number means that the initial state will have a line
+        of infected nodes on one side, instead of a nucleus.
+    critical_threshold: float
+        Threshold for the fraction of infected nodes, to distinguish 'acceptable'
+        from unacceptable infection levels.
 
     Notes
     -----
@@ -48,8 +54,9 @@ class PandemicModel:
         vaccine_frac=0.0,
         recovery_time=maxsize,
         recovered_are_immune=False,
-        travel_rate=0,
-        outpath="",
+        travel_prob=0.0,
+        nucleus_size=1,
+        critical_threshold=0.1,
     ):
         # For now, just check that the lattice is a SquareLattice
         if type(lattice) != SquareLattice:
@@ -61,15 +68,12 @@ class PandemicModel:
         self.vaccine_frac = vaccine_frac
         self.recovery_time = recovery_time
         self.recovered_are_immune = recovered_are_immune
-        self.travel_rate = travel_rate
-        self.outpath = outpath
+        self.travel_prob = travel_prob
+        self.nucleus_size = nucleus_size
+        self.critical_threshold = critical_threshold
 
-        # TODO
-        # Initialise the rng (uses known default seed)
-        # self.seed_rng()
-
-        # Initalise the model with a single infected site
-        # self.init_state()
+        # Initalise the model and random number generator (with a random seed)
+        self.init_state(seed_rng=True)
 
     # ----------------------------------------------------------------------------------------
     #                                                                     | Data descriptors |
@@ -125,32 +129,59 @@ class PandemicModel:
 
     @recovered_are_immune.setter
     def recovered_are_immune(self, new_flag):
-        """Setter for recovered_are_immune. Raises ValueError if input is not a bool."""
+        """Setter for recovered_are_immune. Raises TypeError if input is not a bool."""
         if type(new_flag) is not bool:
-            raise ValueError("Please enter True/False for recovered_are_immune.")
+            raise TypeError("Please enter True/False for recovered_are_immune.")
         self._recovered_are_immune = new_flag
 
     @property
-    def travel_rate(self):
-        """Number of 'travel' events (which are random swaps of nodes) per update."""
-        return self._travel_rate
+    def travel_prob(self):
+        """Probability for any given node to 'travel', which is to shuffle positions
+        with all other travelling nodes at any given time."""
+        return self._travel_prob
 
-    @travel_rate.setter
-    def travel_rate(self, new_value):
-        """Setter for travel_rate. Raises ValueError if input is less than 0."""
-        if new_value < 0:
-            raise ValueError("Please enter an number of journeys of 0 or greater")
-        self._travel_rate = new_value
+    @travel_prob.setter
+    def travel_prob(self, new_value):
+        """Setter for travel_prob. Raises ValueError if input is less than 0 or greater
+        than 1."""
+        if new_value < 0 or new_value > 1:
+            raise ValueError("Please enter a travel probability between 0 and 1.")
+        self._travel_prob = new_value
 
     @property
-    def outpath(self):
-        """Path to directory in which to save output data, plots, animations."""
-        return self._outpath
+    def nucleus_size(self):
+        """Linear size (side length) of the initial nucleus (square) of infected nodes.
+        Alternatively, a negative number means that the initial state will have a line
+        of infected nodes on one side, instead of a nucleus."""
+        return self._nucleus_size
 
-    @outpath.setter
-    def outpath(self, new_path):
-        """Setter for outpath. Saves as pathlib.Path object."""
-        self._outpath = Path(new_path)
+    @nucleus_size.setter
+    def nucleus_size(self, new_value):
+        """Setter for nucleus_size. Raises TypeError if input is not an integer and
+        raises ValueError if input will result in a nucleus that is too large for the
+        lattice, taking the immune nodes into account."""
+        if type(new_value) is not int:
+            raise TypeError("Please provide an integer for the nucleus size.")
+        if (new_value ** 2) / self.lattice.n_nodes + self.vaccine_frac > 1:
+            raise ValueError(
+                f"Not enough nodes on the lattice to support a nucleus of this size with this vaccine fraction."
+            )
+        self._nucleus_size = new_value
+
+    @property
+    def critical_threshold(self):
+        """Threshold for the fraction of infected nodes, to distinguish 'acceptable'
+        from unacceptable infection levels. Used to provide diagonistic info on time
+        evolution and included in plot."""
+        return self._critical_threshold
+
+    @critical_threshold.setter
+    def critical_threshold(self, new_value):
+        """Setter for critical_threshold. Raises ValueError if input is not between 0
+        and 1."""
+        if new_value < 0 or new_value > 1:
+            raise ValueError("Please provide a critical threshold between 0 and 1.")
+        self._critical_threshold = new_value
 
     # ----------------------------------------------------------------------------------------
     #                                                                 | Read-only properties |
@@ -203,7 +234,14 @@ class PandemicModel:
     #                                                                    | Protected methods |
     #                                                                    ---------------------
 
-    def _append_time_series(self):
+    def _seed_rng(self, seed=None):
+        """Resets the random number generator with a seed, for reproducibility. If no
+        seed is provided the random number generated will be randomly re-initialised.
+        """
+        self._rng = np.random.default_rng(seed)
+        return
+
+    def _update_time_series(self):
         """Helper function that appends information about the current state of the model to
         lists containing time series'."""
         n_infected = self._state.astype(bool).sum()
@@ -214,31 +252,38 @@ class PandemicModel:
             self.lattice.n_nodes - n_infected - n_immune
         )
 
-    def _swap_nodes(self):
-        """Swap random pair of nodes. The number of pairs is given by `travel_rate`."""
-        i_travel = self._rng.choice(
-            self.lattice.n_nodes, size=(2 * self.travel_rate), replace=False
-        )
-        self._state[i_travel] = self._state[np.flip(i_travel)]
-        self._immune[i_travel] = self._immune[np.flip(i_travel)]
+    def _shuffle_nodes(self):
+        """Shuffle a subset of the nodes based on drawing uniform random numbers and
+        comparing these to the travel probability."""
+        i_travel = np.where(self._rng.random(self._state.size) < self.travel_prob)[0]
+        if i_travel.size > 0:
+            i_travel_permuted = self._rng.permutation(i_travel)
+            self._state[i_travel] = self._state[i_travel_permuted]
+            self._immune[i_travel] = self._immune[i_travel_permuted]
 
     def _update(self):
         """Performs a single update of the model."""
+
+        # Shuffle a subset of nodes to simulate 'travel'
+        if self.travel_prob > 0:
+            self._shuffle_nodes()
+
+        # If there are no infected nodes, just continue to save time
+        if self._infected_time_series[-1] == 0:
+            self._update_time_series()
+            return
 
         # Update array of immune nodes with those that are about to recover
         if self.recovered_are_immune:
             np.logical_or(self._immune, (self._state == 1), out=self._immune)
 
-        if self.travel_rate > 0:
-            self._swap_nodes()
-
         # Update state by reducing the 'days' counter
         np.clip(self._state - 1, a_min=0, a_max=None, out=self._state)
 
-        # Indices corresponding to neighbours of infected nodes
+        # Indices corresponding to neighbours ('contacts') of infected nodes
         i_contacts = self.lattice.neighbours[self._state.astype(bool)].flatten()
 
-        # Pull out contacts who have the potential to have the virus trasmitted to them
+        # Indices of 'susceptible' contacts who can potentially become infected
         i_potentials = i_contacts[
             np.logical_and(
                 ~self._state.astype(bool),  # neither already infected...
@@ -246,64 +291,43 @@ class PandemicModel:
             )[i_contacts]
         ]
 
-        # Indices corresponding to nodes to which the virus has been transmitted
+        # Indices of nodes to which the virus has just been transmitted
         i_transmissions = np.unique(
-            i_potentials[self._rng.random(i_potentials.shape) < self.transmission_prob]
+            i_potentials[self._rng.random(i_potentials.size) < self.transmission_prob]
         )
 
         # Update state with new infections
         self._state[i_transmissions] = self.recovery_time
 
         # Append the latest data to the time series'
-        self._append_time_series()
+        self._update_time_series()
 
     # ----------------------------------------------------------------------------------------
     #                                                                       | Public methods |
     #                                                                       ------------------
 
-    def seed_rng(self, seed=None):
-        """Resets the random number generator with a seed, for reproducibility. If no
-        seed is provided the random number generated will be randomly re-initialised.
+    def init_state(self, seed_rng=False):
+        """Initialises the state of the model by first creating the initial nucleus or
+        line of infected nodes, and then randomly assigning the correct number of immune
+        nodes to those remaining.
+
+        Inputs
+        ------
+        seed_rng: bool or int (optional)
+            If True, initialise the random number generator with a random seed.
+            If it is a nonzero integer, initialise with that specific seed.
         """
-        self._rng = np.random.default_rng(seed)
-        return
-
-    def init_state(self, initial_shape="nucleus", nucleus_size=1):
-        """Initialises the state of the model. This will set the state to contain precisely
-        `self.initial_infections` infected nodes. The locations of the vaccinated nodes will
-        also be reset. The locations of the infected nodes are randomly selected from the non-
-        vaccinated nodes.
-
-        Inputs:
-        -------
-        initial_shape: str
-            The shape of the initially infected nodes. Either 'nucleus' for a square nucleus
-            in the center of the lattice, or 'line' for a single line of infected nodes on the
-            leftmost vertical edge of the lattice.
-        nucleus_size: int
-            Linear size of the initial nucleus of infections, i.e. side length of the square.
-
-        Notes
-        -----
-        If you want to reproduce the previous simulation, you will need to reseed the
-        random number generator using the `seed_rng` method *before* resetting the state.
-        """
-        if initial_shape not in ("nucleus", "line"):
-            raise ValueError(
-                "Please enter either 'nucleus' or 'line' for initial_shape"
-            )
-        if (nucleus_size ** 2) / self.lattice.n_nodes + self.vaccine_frac > 1:
-            raise ValueError(
-                f"Not enough nodes on the lattice to support a nucleus of this size with the vaccine fraction provided"
-            )
+        # Seed random number generator
+        if seed_rng:
+            self._seed_rng(seed=seed_rng)
 
         # Generate initial infections
         state_cart = np.full((self.lattice.length, self.lattice.length), 0)
-        if initial_shape == "line":
-            state_cart[:, 0] = self.recovery_time  # left column
+        if self.nucleus_size < 0:
+            state_cart[:, 0] = self.recovery_time  # line of infections on left column
         else:
-            corner = self.lattice.length // 2 - nucleus_size // 2
-            i_nucl = slice(corner, corner + nucleus_size)
+            corner = self.lattice.length // 2 - self.nucleus_size // 2
+            i_nucl = slice(corner, corner + self.nucleus_size)
             state_cart[i_nucl, i_nucl] = self.recovery_time
         self._state = state_cart.flatten()
 
@@ -322,7 +346,7 @@ class PandemicModel:
         self._infected_time_series = []
         self._susceptible_time_series = []
         self._immune_time_series = []
-        self._append_time_series()
+        self._update_time_series()
 
     def evolve(self, n_days, display_progress_bar=True):
         """Evolves the model for `n_days` iterations.
@@ -349,7 +373,7 @@ class PandemicModel:
     #                                                                        | Visualisation |
     #                                                                        -----------------
 
-    def plot_evolution(self, critical_threshold=0.1, save=False):
+    def plot_evolution(self, outpath=None):
         """Plots the time evolution of the model.
 
         More specifically, plots the evolution of the fraction of nodes that are (a) susceptible
@@ -361,12 +385,10 @@ class PandemicModel:
 
         Inputs
         ------
-        critical_threshold: float
-            The threshold infected fraction above which bad things happen...
+        outpath: str (optional)
+            If provided, specifies path to a directory in which the plot will be saved
+            as 'plot.png'.
         """
-        if critical_threshold < 0 and critical_threshold > 1:
-            raise ValueError("Please provide a critical threshold between 0 and 1")
-
         fig, ax = plt.subplots()
         ax.set_title("Time evolution of the pandemic")
         ax.set_xlabel("Days since patient 0")
@@ -389,7 +411,7 @@ class PandemicModel:
 
         # Plot horizontal line at critical threshold
         ax.axhline(
-            critical_threshold,
+            self.critical_threshold,
             linestyle="--",
             color="orange",
             label="critical threshold",
@@ -400,40 +422,46 @@ class PandemicModel:
         ax.fill_between(
             x=np.arange(n_days),
             y1=self.infected_time_series,
-            y2=np.full(n_days, critical_threshold),
-            where=self.infected_time_series > critical_threshold,
+            y2=np.full(n_days, self.critical_threshold),
+            where=self.infected_time_series > self.critical_threshold,
             color="orange",
             alpha=0.2,
         )
 
         # Print some useful diagonstics
-        days_above_thresh = (self.infected_time_series > critical_threshold).sum()
+        days_above_thresh = (self.infected_time_series > self.critical_threshold).sum()
         print(
-            f"{days_above_thresh}/{n_days} days spent above the critical threshold of {critical_threshold}"
+            f"{days_above_thresh}/{n_days} days spent above the critical threshold of {self.critical_threshold}"
         )
         area_above_thresh = (
-            self.infected_time_series[self.infected_time_series > critical_threshold]
+            self.infected_time_series[
+                self.infected_time_series > self.critical_threshold
+            ]
         ).sum()
         print(f"Area above critical threshold: {area_above_thresh}")
 
         ax.legend()
         fig.tight_layout()
 
-        if save:
-            self.outpath.mkdir(parents=True, exist_ok=True)
-            fig.savefig(self.outpath / "plot.png")
+        if outpath is not None:
+            outpath = Path(outpath)
+            outpath.mkdir(parents=True, exist_ok=True)
+            fig.savefig(outpath / "plot.png")
         else:
             plt.show()
 
-    def animate(self, n_days, interval=25, save=False):
+    def animate(self, n_days, interval=25, outpath=None):
         """Evolves the model for `n_steps` iterations and produces an animation.
 
         Inputs
         ------
         n_steps: int
             Number of updates.
-        interval: int
+        interval: int (optional)
             Number of millisconds delay between each update.
+        outpath: str (optional)
+            If provided, specifies path to a directory in which the plot will be saved
+            as 'animation.gif'.
         """
         fig, ax = plt.subplots()
         ax.set_axis_off()
@@ -470,8 +498,9 @@ class PandemicModel:
             fig, loop, frames=n_days + 1, interval=interval, repeat=False, blit=True
         )
 
-        if save:
-            self.outpath.mkdir(parents=True, exist_ok=True)
-            animation.save(self.outpath / "animation.gif")
+        if outpath is not None:
+            outpath = Path(outpath)
+            outpath.mkdir(parents=True, exist_ok=True)
+            animation.save(outpath / "animation.gif")
 
         return animation

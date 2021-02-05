@@ -11,14 +11,14 @@ parser.add(
     "--length",
     type=int,
     required=True,
-    help="Number of nodes along one axes of the square lattice.",
+    help="number of nodes along one axes of the square lattice",
 )
 parser.add(
     "-n",
     "--n-days",
     type=int,
     required=True,
-    help="Number of 'days' (time steps) to evolve the model forwards.",
+    help="number of 'days' (time steps) to evolve the model forwards",
 )
 
 # Optional args
@@ -27,70 +27,87 @@ parser.add(
     "--outpath",
     type=str,
     default=".",
-    help="Path to directory for output files. Default: '.'.",
+    help="path to directory for output files, default: '.'",
 )
 
 parser.add(
     "-t",
     "--time",
     action="store_true",
-    help="Report the time taken to evolve the model. Also forces --skip-animation=True.",
+    help="report the time taken to evolve the model (forces --skip-animation=true)",
 )
 parser.add(
     "-p",
     "--transmission-prob",
     type=float,
     default=1.0,
-    help="Probability of an infected node transmitting the virus to a susceptible contact upon a single refresh of the model. Default: 1.0.",
+    help="probability of an infected node transmitting the virus to a susceptible contact upon a single refresh of the model, default: 1.0",
 )
 parser.add(
     "-v",
     "--vaccine-frac",
     type=float,
     default=0.0,
-    help="Fraction of nodes that are initially flagged as immune against the virus. Default: 0.",
+    help="fraction of nodes that are initially flagged as immune against the virus, default: 0",
 )
 parser.add(
     "-r",
     "--recovery-time",
     type=int,
     default=maxsize,
-    help="Number of time steps before an infected node is considered to have recovered, and is no longer able to spread the infection.",
+    help="number of time steps before an infected node is considered to have recovered, and is no longer able to spread the infection",
 )
 
 parser.add(
     "--recovered-are-immune",
     action="store_true",
-    help="Nodes which have recovered from the infection are flagged as immune.",
+    help="nodes which have recovered from the infection are flagged as immune",
+)
+parser.add(
+    "--travel-prob",
+    type=float,
+    default=0.0,
+    help="probability for any given node to 'travel', which is to shuffle positions with all other travelling nodes at any given time, default: 0.0",
 )
 parser.add(
     "--initial-shape",
     type=str,
     choices=("nucleus", "line"),
     default="nucleus",
-    help="'Shape' of the infection on day 0. Choices: 'nucleus' (a square), 'line'.",
+    help="'shape' of the infection on day 0, choices: 'nucleus', 'line'",
 )
 parser.add(
     "--nucleus-size",
     type=int,
     default=1,
-    help="Linear size of the initial infected nucleus, i.e. size length of the square.",
+    help="linear size of the initial infected nucleus",
 )
 parser.add(
     "--periodic",
     action="store_true",
-    help="Periodic boundary conditions on the lattice.",
+    help="periodic boundary conditions on the lattice",
+)
+parser.add(
+    "--critical-threshold",
+    type=float,
+    default=0.1,
+    help="threshold for the fraction of infected nodes, used in plot and diagnostics, default: 0.1",
 )
 parser.add(
     "--skip-animation",
     action="store_true",
-    help="Do not create an animation of the pandemic evolution.",
+    help="do not create an animation of the pandemic evolution",
+)
+parser.add(
+    "--interval",
+    type=int,
+    default=25,
+    help="number of milliseconds delay between each update in the animation",
 )
 parser.add(
     "--seed",
-    type=int,
-    default=None,
-    help="Specify a seed for the random number generator. For reproducibility.",
+    default=False,
+    help="re-seed the random number generator, optionally with a known (non-zero) seed for reproducibility",
 )
 
 args = parser.parse_args()
