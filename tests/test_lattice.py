@@ -9,25 +9,74 @@ def err_msg(desc, expected, got):
     return f"{desc}\nExpected {expected}, but got {got}."
 
 
-def test_neighbours():
-    lattice = SquareLattice(dimensions=L, directed="isotropic", periodic=True)
-    desc = "Neighbours array does not match that expected from numpy.roll (isotropic)."
-    expected = np.sort(
-        np.concatenate(
-            [
-                np.roll(REFERENCE_LATTICE, shift=1, axis=0),  # up
-                np.roll(REFERENCE_LATTICE, shift=-1, axis=0),  # down
-                np.roll(REFERENCE_LATTICE, shift=1, axis=1),  # left
-                np.roll(REFERENCE_LATTICE, shift=-1, axis=1),  # right
-            ]
-        ).flatten()
-    )
-    got = np.sort(lattice.neighbours.flatten())
-    np.testing.assert_array_equal(got, expected, err_msg=err_msg(desc, expected, got))
+class TestNeighbours:
+    def test_four_connections(self):
+        lattice = SquareLattice(dimensions=L, n_connections=4, periodic=True)
+        desc = (
+            "Neighbours array does not match that expected from numpy.roll (isotropic)."
+        )
+        expected = np.sort(
+            np.concatenate(
+                [
+                    np.roll(REFERENCE_LATTICE, shift=1, axis=0),  # up
+                    np.roll(REFERENCE_LATTICE, shift=-1, axis=0),  # down
+                    np.roll(REFERENCE_LATTICE, shift=1, axis=1),  # left
+                    np.roll(REFERENCE_LATTICE, shift=-1, axis=1),  # right
+                ]
+            ).flatten()
+        )
+        got = np.sort(lattice.neighbours.flatten())
+        np.testing.assert_array_equal(
+            got, expected, err_msg=err_msg(desc, expected, got)
+        )
+
+    def test_three_connections(self):
+        lattice = SquareLattice(dimensions=L, n_connections=3, periodic=True)
+        desc = "Neighbours array does not match that expected from numpy.roll (down/up/right-directed)."
+        expected = np.sort(
+            np.concatenate(
+                [
+                    np.roll(REFERENCE_LATTICE, shift=1, axis=0),  # up
+                    np.roll(REFERENCE_LATTICE, shift=-1, axis=0),  # down
+                    np.roll(REFERENCE_LATTICE, shift=-1, axis=1),  # right
+                ]
+            ).flatten()
+        )
+        got = np.sort(lattice.neighbours.flatten())
+        np.testing.assert_array_equal(
+            got, expected, err_msg=err_msg(desc, expected, got)
+        )
+
+    def test_two_connections(self):
+        lattice = SquareLattice(dimensions=L, n_connections=2, periodic=True)
+        desc = "Neighbours array does not match that expected from numpy.roll (down/right-directed)."
+        expected = np.sort(
+            np.concatenate(
+                [
+                    np.roll(REFERENCE_LATTICE, shift=-1, axis=0),  # down
+                    np.roll(REFERENCE_LATTICE, shift=-1, axis=1),  # right
+                ]
+            ).flatten()
+        )
+        got = np.sort(lattice.neighbours.flatten())
+        np.testing.assert_array_equal(
+            got, expected, err_msg=err_msg(desc, expected, got)
+        )
+
+    def test_one_connection(self):
+        lattice = SquareLattice(dimensions=L, n_connections=1, periodic=True)
+        desc = "Neighbours array does not match that expected from numpy.roll (right-directed)."
+        expected = np.sort(
+            np.roll(REFERENCE_LATTICE, shift=-1, axis=1).flatten()
+        )  # right
+        got = np.sort(lattice.neighbours.flatten())
+        np.testing.assert_array_equal(
+            got, expected, err_msg=err_msg(desc, expected, got)
+        )
 
 
 class TestFixedBoundaries:
-    lattice = SquareLattice(dimensions=L, directed="isotropic", periodic=False)
+    lattice = SquareLattice(dimensions=L, n_connections=4, periodic=False)
 
     def test_top_left_corner(self):
         desc = "Wrong neighbours at top left corner (fixed boundaries)."
@@ -117,58 +166,6 @@ class TestFixedBoundaries:
             )
         )
         got = np.sort(self.lattice.neighbours[REFERENCE_LATTICE[0, 1:-1]].flatten())
-        np.testing.assert_array_equal(
-            got, expected, err_msg=err_msg(desc, expected, got)
-        )
-
-
-class TestAnisotropy:
-    def test_directed_right(self):
-        lattice = SquareLattice(dimensions=L, directed="right", periodic=True)
-        desc = "Neighbours array does not match that expected from numpy.roll (right-directed)."
-        expected = np.sort(
-            np.concatenate(
-                [
-                    np.roll(REFERENCE_LATTICE, shift=1, axis=0),  # up
-                    np.roll(REFERENCE_LATTICE, shift=-1, axis=0),  # down
-                    np.roll(REFERENCE_LATTICE, shift=-1, axis=1),  # right
-                ]
-            ).flatten()
-        )
-        got = np.sort(lattice.neighbours.flatten())
-        np.testing.assert_array_equal(
-            got, expected, err_msg=err_msg(desc, expected, got)
-        )
-
-    def test_directed_down(self):
-        lattice = SquareLattice(dimensions=L, directed="down", periodic=True)
-        desc = "Neighbours array does not match that expected from numpy.roll (down-directed)."
-        expected = np.sort(
-            np.concatenate(
-                [
-                    np.roll(REFERENCE_LATTICE, shift=-1, axis=0),  # down
-                    np.roll(REFERENCE_LATTICE, shift=1, axis=1),  # left
-                    np.roll(REFERENCE_LATTICE, shift=-1, axis=1),  # right
-                ]
-            ).flatten()
-        )
-        got = np.sort(lattice.neighbours.flatten())
-        np.testing.assert_array_equal(
-            got, expected, err_msg=err_msg(desc, expected, got)
-        )
-
-    def test_directed_both(self):
-        lattice = SquareLattice(dimensions=L, directed="both", periodic=True)
-        desc = "Neighbours array does not match that expected from numpy.roll (down-right-directed)."
-        expected = np.sort(
-            np.concatenate(
-                [
-                    np.roll(REFERENCE_LATTICE, shift=-1, axis=0),  # down
-                    np.roll(REFERENCE_LATTICE, shift=-1, axis=1),  # right
-                ]
-            ).flatten()
-        )
-        got = np.sort(lattice.neighbours.flatten())
         np.testing.assert_array_equal(
             got, expected, err_msg=err_msg(desc, expected, got)
         )

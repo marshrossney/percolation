@@ -10,11 +10,13 @@ class SquareLattice:
     down, but not along the diagonals)."""
 
     def __init__(
-        self, dimensions: tuple, directed: str = "isotropic", periodic: bool = False
+        self, dimensions: tuple, n_connections: int = 4, periodic: bool = False
     ):
-        self.directed = directed
+        self.dimensions = dimensions
+        self.n_connections = n_connections
         self.periodic = periodic
-        self.dimensions = dimensions  # last since it involves cache_neighbours
+
+        self._cache_properties()
 
     # ----------------------------------------------------------------------------------------
     #                                                                     | Data descriptors |
@@ -52,27 +54,36 @@ class SquareLattice:
                     f"Please enter lattice dimensions beween {MIN_LENGTH} and {MAX_LENGTH}"
                 )
         self._dimensions = new_value
-        self._cache_neighbours()  # must update neighbour array if dimensions modified!
+
+        if hasattr(self, "_neighbours"):
+            self._cache_properties()  # must update neighbour lists and boundary masks
 
     @property
-    def directed(self):
-        """Tuple with two elements indicating whether the connections are directed along
-        the corresponding axes (True) or whether they are bi-directional (False). In the
-        case of directed connections, nodes will have fewer than 4 neighbours. This us
-        Used to generate anisotropy in percolation simulations."""
-        return self._directed
+    def n_connections(self):
+        """Number of connections per node. The directions of the connections are not
+        randomised, so for n_connections < 4 the lattice becomes anisotropic. Visually,
+        this looks like the following:
 
-    @directed.setter
-    def directed(self, new_string):
-        """Setter for directed. Raises TypeError if input is not a string and ValueError
-        if it is not one of 'isotropic', 'right', 'down', or 'both'."""
-        opts = ("isotropic", "right", "down", "both")
-        msg = f"Please choose from: {', '.join([opt for opt in opts])}."
-        if type(new_string) is not str:
-            raise TypeError(msg)
-        if new_string not in opts:
-            raise ValueError(msg)
-        self._directed = new_string
+            n_connections       4           3           2           1
+
+                                ^           ^
+            directions      < - | - >       | - >       | - >       - >
+                                v           V           V
+        """
+        return self._n_connections
+
+    @n_connections.setter
+    def n_connections(self, new_value):
+        """Setter for n_connections. Raises TypeError if not int and ValueError if not
+        between 1 and 4."""
+        if type(new_value) is not int:
+            raise TypeError("Please provide an integer for the number of connections.")
+        if new_value < 1 or new_value > 4:
+            raise ValueError("Please provide a number of connections between 1 and 4")
+        self._n_connections = new_value
+
+        if hasattr(self, "_neighbours"):
+            self._cache_properties()
 
     @property
     def periodic(self):
@@ -95,12 +106,6 @@ class SquareLattice:
     def n_nodes(self):
         """Number of nodes on the lattice."""
         return self.dimensions[0] * self.dimensions[1]
-
-    @property
-    def n_neighbours(self):
-        """Number of nearest neighbours that each node is in 'contact' with, meaning the
-        virus can be transmitted."""
-        return len(self.connections)
 
     @property
     def neighbours(self):
@@ -126,36 +131,68 @@ class SquareLattice:
             -1      1       cols shifted left       to right
 
         """
-        if self.directed == "isotropic":
+        if self.n_connections == 4:
             return ((1, 0), (-1, 0), (1, 1), (-1, 1))
-        elif self.directed == "right":
+        elif self.n_connections == 3:  # exclude left connections
             return ((1, 0), (-1, 0), (-1, 1))
-        elif self.directed == "down":
-            return ((-1, 0), (1, 1), (-1, 1))
-        elif self.directed == "both":
+        elif self.n_connections == 2:  # exclude left and up connections
             return ((-1, 0), (-1, 1))
+        else:  # exclude all but right connections
+            return ((-1, 1),)
+
+    @property
+    def far_boundary_mask(self):
+        """A boolean mask which selects the nodes at the 'far' boundary."""
+        if self.n_connections == 4:
+            return self.get_boundary_mask(key="all")
+        else:
+            return self.get_boundary_mask(key="right")
 
     # ----------------------------------------------------------------------------------------
     #                                                                    | Protected methods |
     #                                                                    ---------------------
 
-    def _boundary_nodes_mask(self):
-        """Convenience method that returns a tuple of masks which can be used to access
-        the strips of nodes at each of the four boundaries."""
+    def _cache_properties(self):
+        """Cache boundary masks and neighbours in correct order."""
+        self._cache_boundary_masks()
+        self._cache_neighbours()
+
+    def _cache_boundary_masks(self):
+        """Cache the masks that are used to select boundary nodes. The four boundaries
+        are saved as a dict which may be accessed using either human-readible strings
+        top/bottom/left/right or the (shift, dim) tuples returned by self.connections.
+        Also caches the 'far' boundary mask.
+        """
         lexi_like_cart = np.arange(self.n_nodes).reshape(*self.dimensions)
-        mask_dict = {
-            (1, 0): lexi_like_cart // self.dimensions[0] == 0,  # top row
-            (-1, 0): lexi_like_cart // self.dimensions[0]
-            == self.dimensions[0] - 1,  # bottom row
-            (1, 1): lexi_like_cart % self.dimensions[1] == 0,  # left column
-            (-1, 1): lexi_like_cart % self.dimensions[1]
-            == self.dimensions[1] - 1,  # right column
+
+        top_row = (lexi_like_cart // self.dimensions[0] == 0).flatten()
+        bottom_row = (
+            lexi_like_cart // self.dimensions[0] == self.dimensions[0] - 1
+        ).flatten()
+        left_col = (lexi_like_cart % self.dimensions[1] == 0).flatten()
+        right_col = (
+            lexi_like_cart % self.dimensions[1] == self.dimensions[1] - 1
+        ).flatten()
+        all_boundaries = np.logical_or.reduce(
+            (top_row, bottom_row, left_col, right_col)
+        )
+
+        self._boundary_masks = {
+            # Access using string
+            "top": top_row,
+            "bottom": bottom_row,
+            "left": left_col,
+            "right": right_col,
+            "all": all_boundaries,
+            # Access using (shift, dim)
+            (1, 0): top_row,
+            (-1, 0): bottom_row,
+            (1, 1): left_col,
+            (-1, 1): right_col,
         }
-        masks = [mask_dict[conn] for conn in self.connections]
-        return tuple(masks)
 
     def _cache_neighbours(self):
-        """Cache the array of neighbours to avoid repeated calculations.
+        """Caches the array of neighbours to avoid repeated calculations.
 
         Notes:
         ------
@@ -166,21 +203,20 @@ class SquareLattice:
         infected.
         """
         lexi_like_cart = np.arange(self.n_nodes).reshape(*self.dimensions)
-        neighbours = np.zeros((self.n_neighbours, self.n_nodes), dtype=int)
+        neighbours = np.zeros((self.n_connections, self.n_nodes), dtype=int)
 
         for i, (shift, axis) in enumerate(self.connections):
             # Roll the cartesian array and flatten for 1d array of neighbours
             neighbours[i] = np.roll(lexi_like_cart, shift, axis=axis).flatten()
 
-        if not self.periodic:
-            for i, mask in enumerate(self._boundary_nodes_mask()):
+            if not self.periodic:
                 np.putmask(
                     neighbours[i],
-                    mask=mask.flatten(),  # pull out one row/col
+                    mask=self.get_boundary_mask(key=(shift, axis)),
                     values=np.arange(self.n_nodes),  # equivalent to zero shift
                 )
 
-        self._neighbours = neighbours.transpose()  # shape (n_nodes, n_neighbours)
+        self._neighbours = neighbours.transpose()  # shape (n_nodes, n_connections)
 
     # ----------------------------------------------------------------------------------------
     #                                                                       | Public methods |
@@ -195,3 +231,39 @@ class SquareLattice:
             One dimensional array containing the state in lexicographic representation.
         """
         return state_lexi.reshape(*self.dimensions)
+
+    def get_boundary_mask(self, key="all"):
+        """Convenience method that returns a mask that selects the nodes at one or
+        all of the boundaries.
+
+        Inputs
+        ------
+        key: str (optional)
+            Key which selects which boundary's mask to return. Options are
+            'left', 'right', 'top', 'bottom', 'all'.
+        """
+        return self._boundary_masks[key]
+
+    def get_nucleus_mask(self, nucleus_size=1):
+        """Returns a 1d boolean mask which selects nodes representing a nucleus of
+        infections at day 0. This can be either
+
+            * isotropic case -> a nucleus_size^2 area in the center of the lattice
+            * anisotropic case -> a line at the left boundary
+
+        Inputs
+        ------
+        nucleus_size: int (optional)
+            Side length of the nucleus, in nodes.
+        """
+        if self.n_connections == 4:
+            left_edge = self.dimensions[0] // 2 - nucleus_size // 2
+            top_edge = self.dimensions[1] // 2 - nucleus_size // 2
+            mask = np.full(self.dimensions, False)
+            mask[
+                slice(left_edge, left_edge + nucleus_size),
+                slice(top_edge, top_edge + nucleus_size),
+            ] = True
+            return mask.flatten()
+        else:
+            return self.get_boundary_mask(key="left")

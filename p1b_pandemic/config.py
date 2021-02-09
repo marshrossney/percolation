@@ -14,14 +14,6 @@ parser.add(
     required=True,
     help="number of nodes along each axis of the lattice",
 )
-parser.add(
-    "-n",
-    "--n-days",
-    type=int,
-    required=True,
-    help="number of 'days' (time steps) to evolve the model forwards",
-)
-
 # Optional args
 parser.add(
     "-o",
@@ -30,7 +22,13 @@ parser.add(
     default=".",
     help="path to directory for output files, default: '.'",
 )
-
+parser.add(
+    "-n",
+    "--n-days",
+    type=int,
+    default=100,
+    help="number of 'days' (time steps) to evolve the model forwards",
+)
 parser.add(
     "-t",
     "--time",
@@ -84,22 +82,16 @@ parser.add(
     help="linear size of the initial infected nucleus",
 )
 parser.add(
-    "--directed",
-    type=str,
-    choices=("isotropic", "right", "down", "both"),
-    default="isotropic",
-    help="Directed connections along none, one, or both of the axes, default: 'isotropic'",
+    "--n-connections",
+    type=int,
+    choices=(1, 2, 3, 4),
+    default=4,
+    help="Number of connections for each node on the lattice, default: 4",
 )
 parser.add(
     "--periodic",
-    action="store_true",
+    action="store_false",
     help="periodic boundary conditions on the lattice",
-)
-parser.add(
-    "--critical-threshold",
-    type=float,
-    default=0.1,
-    help="threshold for the fraction of infected nodes, used in plot and diagnostics, default: 0.1",
 )
 parser.add(
     "--skip-animation",
@@ -118,4 +110,34 @@ parser.add(
     help="If true, use a known seed for the random number generator",
 )
 
-args = parser.parse_args()
+# Parameter scan only
+parser.add(
+    "--parameter",
+    type=str,
+    default="vaccine_frac",
+    help="Parameter to scan over, default: 'vaccine_frac'",
+)
+parser.add(
+    "--start",
+    type=float,
+    default=0,
+    help="Lower limit of the parameter to scan over, default: 0",
+)
+parser.add(
+    "--stop",
+    type=float,
+    default=0.8,
+    help="Upper limit of the parameter to scan over, default: 0",
+)
+parser.add(
+    "--num",
+    type=int,
+    default=20,
+    help="Number of values of the parameter to scan over, default: 20",
+)
+parser.add(
+    "--repeats",
+    type=int,
+    default=10,
+    help="Number of simulations to run for a given set of parameters, default: 10",
+)

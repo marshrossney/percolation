@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from tqdm import tqdm
 from sys import maxsize
 from pathlib import Path
 
@@ -35,9 +34,6 @@ class PandemicModel:
         Linear size (side length) of the initial nucleus (square) of infected nodes.
         Alternatively, a negative number means that the initial state will have a line
         of infected nodes on one side, instead of a nucleus.
-    critical_threshold: float
-        Threshold for the fraction of infected nodes, to distinguish 'acceptable'
-        from unacceptable infection levels.
 
     Notes
     -----
@@ -56,7 +52,6 @@ class PandemicModel:
         recovered_are_immune=False,
         travel_prob=0.0,
         nucleus_size=1,
-        critical_threshold=0.1,
     ):
         # TODO: upgrade so we can use more general graphs
         # For now, just check that the lattice is a SquareLattice
@@ -71,7 +66,6 @@ class PandemicModel:
         self.recovered_are_immune = recovered_are_immune
         self.travel_prob = travel_prob
         self.nucleus_size = nucleus_size
-        self.critical_threshold = critical_threshold
 
         # Initalise the model and random number generator (with a known seed)
         self.init_state(reproducible=True)
@@ -169,21 +163,6 @@ class PandemicModel:
             )
         self._nucleus_size = new_value
 
-    @property
-    def critical_threshold(self):
-        """Threshold for the fraction of infected nodes, to distinguish 'acceptable'
-        from unacceptable infection levels. Used to provide diagonistic info on time
-        evolution and included in plot."""
-        return self._critical_threshold
-
-    @critical_threshold.setter
-    def critical_threshold(self, new_value):
-        """Setter for critical_threshold. Raises ValueError if input is not between 0
-        and 1."""
-        if new_value < 0 or new_value > 1:
-            raise ValueError("Please provide a critical threshold between 0 and 1.")
-        self._critical_threshold = new_value
-
     # ----------------------------------------------------------------------------------------
     #                                                                 | Read-only properties |
     #                                                                 ------------------------
@@ -226,10 +205,19 @@ class PandemicModel:
 
     @property
     def immune_time_series(self):
-        """Numpy array containing the of fraction of nodes that are immune to infection,
+        """Numpy array containing the fraction of nodes that are immune to infection,
         either because they are vaccinated or because they have previously had the virus.
         The list is appended to as the model is evolved forwards."""
         return np.array(self._immune_time_series) / self.lattice.n_nodes
+
+    @property
+    def has_percolated(self):
+        """Returns True if infections have reached the 'far boundary' defined by the
+        underlying lattice object."""
+        if np.any(self._state[self.lattice.far_boundary_mask]):
+            return True
+        else:
+            return False
 
     # ----------------------------------------------------------------------------------------
     #                                                                    | Protected methods |
@@ -240,7 +228,6 @@ class PandemicModel:
         seed is provided the random number generated will be randomly re-initialised.
         """
         self._rng = np.random.default_rng(seed)
-        return
 
     def _update_time_series(self):
         """Helper function that appends information about the current state of the model to
@@ -263,7 +250,13 @@ class PandemicModel:
             self._immune[i_travel] = self._immune[i_travel_permuted]
 
     def _update(self):
-        """Performs a single update of the model."""
+        """Performs a single update of the model.
+
+        Returns
+        -------
+        n_transmissions: int
+            number of transmissions for this update
+        """
 
         # Shuffle a subset of nodes to simulate 'travel'
         if self.travel_prob > 0:
@@ -272,7 +265,7 @@ class PandemicModel:
         # If there are no infected nodes, just continue to save time
         if self._infected_time_series[-1] == 0:
             self._update_time_series()
-            return
+            return 0 
 
         # Update array of immune nodes with those that are about to recover
         if self.recovered_are_immune:
@@ -303,15 +296,8 @@ class PandemicModel:
         # Append the latest data to the time series'
         self._update_time_series()
 
-    def _nucleus_mask(self):
-        """Returns a mask which covers a self.nucleus_size^2 area in the center of the
-        lattice."""
-        left_edge = self.lattice.dimensions[0] // 2 - self.nucleus_size // 2
-        top_edge = self.lattice.dimensions[1] // 2 - self.nucleus_size // 2
-        return (
-            slice(left_edge, left_edge + self.nucleus_size),
-            slice(top_edge, top_edge + self.nucleus_size),
-        )
+        return len(i_transmissions)
+
 
     # ----------------------------------------------------------------------------------------
     #                                                                       | Public methods |
@@ -335,12 +321,9 @@ class PandemicModel:
             self._seed_rng(seed=None)
 
         # Generate initial infections
-        state_cart = np.full(self.lattice.dimensions, 0)
-        if self.nucleus_size < 0:
-            state_cart[:, 0] = self.recovery_time  # line of infections on left column
-        else:
-            state_cart[self._nucleus_mask()] = self.recovery_time
-        self._state = state_cart.flatten()
+        self._state = np.zeros(self.lattice.n_nodes)
+        nucleus_mask = self.lattice.get_nucleus_mask(nucleus_size=self.nucleus_size)
+        self._state[nucleus_mask] = self.recovery_time
 
         # Generate vaccinated nodes, avoiding the initially infected ones
         i_vaccinated = self._rng.choice(
@@ -359,26 +342,42 @@ class PandemicModel:
         self._immune_time_series = []
         self._update_time_series()
 
-    def evolve(self, n_days, display_progress_bar=True):
+    def evolve(self, n_days):
         """Evolves the model for `n_days` iterations.
 
         Inputs
         ------
         n_days: int
             Number of updates.
-        display_progress_bar: bool (optional)
-            Flag indicating whether or not to display a progress bar. Default: True.
         """
-        if display_progress_bar:
-            generator = tqdm(range(n_days), desc="Days")
-        else:
-            generator = range(n_days)
+        if type(n_days) is not int:
+            raise TypeError("Please provide an integer for the number of days to evolve.")
+        if n_days < 1:
+            raise ValueError("Please enter a positive number of days.")
 
-        for t in generator:
-            self._update()
+        for day in range(n_days):
+            _ = self._update()
+    
+    def evolve_until_percolated(self):
+        """Evolve until percolation occurs or transmission halts. Percolation is defined
+        as one or more nodes on the 'far boundary' being infected. Transmission halting
+        is defined as having no transmissions for 1 / self.transmission_prob days.
+        """
+        days_without_new_infections = 0
+        days_simulated = 0
 
-    def evolve_ensemble(self, n_days):
-        raise NotImplementedError
+        while days_without_new_infections < (1 / self.transmission_prob):
+            n_transmissions = self._update()
+            days_simulated += 1
+
+            if n_transmissions == 0:
+                days_without_new_infections += 1
+            else:
+                days_without_new_infections = 0
+
+            if days_simulated % 10 == 0:
+                if self.has_percolated:
+                    break
 
     # ----------------------------------------------------------------------------------------
     #                                                                        | Visualisation |
@@ -420,37 +419,6 @@ class PandemicModel:
             label="immune",
         )
 
-        # Plot horizontal line at critical threshold
-        ax.axhline(
-            self.critical_threshold,
-            linestyle="--",
-            color="orange",
-            label="critical threshold",
-        )
-
-        # Shade area between infections curve and critical threshold
-        n_days = len(self.infected_time_series)
-        ax.fill_between(
-            x=np.arange(n_days),
-            y1=self.infected_time_series,
-            y2=np.full(n_days, self.critical_threshold),
-            where=self.infected_time_series > self.critical_threshold,
-            color="orange",
-            alpha=0.2,
-        )
-
-        # Print some useful diagonstics
-        days_above_thresh = (self.infected_time_series > self.critical_threshold).sum()
-        print(
-            f"{days_above_thresh}/{n_days} days spent above the critical threshold of {self.critical_threshold}"
-        )
-        area_above_thresh = (
-            self.infected_time_series[
-                self.infected_time_series > self.critical_threshold
-            ]
-        ).sum()
-        print(f"Area above critical threshold: {area_above_thresh}")
-
         ax.legend()
         fig.tight_layout()
 
@@ -474,6 +442,11 @@ class PandemicModel:
             If provided, specifies path to a directory in which the plot will be saved
             as 'animation.gif'.
         """
+        if type(n_days) is not int:
+            raise TypeError("Please provide an integer for the number of days to animate.")
+        if n_days < 1:
+            raise ValueError("Please enter a positive number of days for the animation.")
+
         fig, ax = plt.subplots()
         ax.set_axis_off()
 
@@ -499,7 +472,7 @@ class PandemicModel:
         def loop(t):
             if t == 0:  # otherwise the animation starts a frame late in Jupyter...
                 return (image, overlay)
-            self._update()
+            _ = self._update()
             image.set_data(self.state)
             overlay.set_data(self.immune)
             day_counter.set_text(f"Day {t}")

@@ -1,0 +1,16 @@
+# Lattice
+dimensions: [100,100]
+n-connections: 4
+periodic: false
+
+# Model
+transmission-prob: 1.0
+vaccine-frac: 0.38
+recovery-time: 21
+recovered-are-immune: true
+
+# Initialisation
+nucleus-size: 2
+
+# Evolution
+n-days: 200

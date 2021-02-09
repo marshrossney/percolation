@@ -1,0 +1,11 @@
+# Lattice
+dimensions: [50, 200]
+n-connections: 3
+periodic: false
+
+# Model
+transmission-prob: 1.0
+vaccine-frac: 0.38
+
+# Evolution
+n-days: -1
