@@ -58,6 +58,7 @@ class PandemicModel:
         nucleus_size=1,
         critical_threshold=0.1,
     ):
+        # TODO: upgrade so we can use more general graphs
         # For now, just check that the lattice is a SquareLattice
         if type(lattice) != SquareLattice:
             raise ValueError("Please provide an instance of SquareLattice.")
@@ -72,8 +73,8 @@ class PandemicModel:
         self.nucleus_size = nucleus_size
         self.critical_threshold = critical_threshold
 
-        # Initalise the model and random number generator (with a random seed)
-        self.init_state(seed_rng=True)
+        # Initalise the model and random number generator (with a known seed)
+        self.init_state(reproducible=True)
 
     # ----------------------------------------------------------------------------------------
     #                                                                     | Data descriptors |
@@ -302,33 +303,43 @@ class PandemicModel:
         # Append the latest data to the time series'
         self._update_time_series()
 
+    def _nucleus_mask(self):
+        """Returns a mask which covers a self.nucleus_size^2 area in the center of the
+        lattice."""
+        left_edge = self.lattice.dimensions[0] // 2 - self.nucleus_size // 2
+        top_edge = self.lattice.dimensions[1] // 2 - self.nucleus_size // 2
+        return (
+            slice(left_edge, left_edge + self.nucleus_size),
+            slice(top_edge, top_edge + self.nucleus_size),
+        )
+
     # ----------------------------------------------------------------------------------------
     #                                                                       | Public methods |
     #                                                                       ------------------
 
-    def init_state(self, seed_rng=False):
+    def init_state(self, reproducible=False):
         """Initialises the state of the model by first creating the initial nucleus or
         line of infected nodes, and then randomly assigning the correct number of immune
         nodes to those remaining.
 
         Inputs
         ------
-        seed_rng: bool or int (optional)
-            If True, initialise the random number generator with a random seed.
-            If it is a nonzero integer, initialise with that specific seed.
+        reproducible: bool (optional)
+            If True, initialise the random number generator with a known seed, so that
+            the simulation can be reproduced exactly. Otherwise, use a random seed.
         """
         # Seed random number generator
-        if seed_rng:
-            self._seed_rng(seed=seed_rng)
+        if reproducible:
+            self._seed_rng(seed=123456)
+        else:
+            self._seed_rng(seed=None)
 
         # Generate initial infections
-        state_cart = np.full((self.lattice.length, self.lattice.length), 0)
+        state_cart = np.full(self.lattice.dimensions, 0)
         if self.nucleus_size < 0:
             state_cart[:, 0] = self.recovery_time  # line of infections on left column
         else:
-            corner = self.lattice.length // 2 - self.nucleus_size // 2
-            i_nucl = slice(corner, corner + self.nucleus_size)
-            state_cart[i_nucl, i_nucl] = self.recovery_time
+            state_cart[self._nucleus_mask()] = self.recovery_time
         self._state = state_cart.flatten()
 
         # Generate vaccinated nodes, avoiding the initially infected ones
@@ -481,7 +492,7 @@ class PandemicModel:
         )
         day_counter = ax.annotate(
             text=f"Day 0",
-            xy=(1, 0),
+            xy=(0, -0.11),
             xycoords="axes fraction",
         )
 

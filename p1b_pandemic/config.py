@@ -7,11 +7,12 @@ parser.add("-c", "--config", is_config_file=True, help="path to config file")
 
 # Required args
 parser.add(
-    "-l",
-    "--length",
+    "-d",
+    "--dimensions",
     type=int,
+    action="append",
     required=True,
-    help="number of nodes along one axes of the square lattice",
+    help="number of nodes along each axis of the lattice",
 )
 parser.add(
     "-n",
@@ -83,6 +84,13 @@ parser.add(
     help="linear size of the initial infected nucleus",
 )
 parser.add(
+    "--directed",
+    type=str,
+    choices=("isotropic", "right", "down", "both"),
+    default="isotropic",
+    help="Directed connections along none, one, or both of the axes, default: 'isotropic'",
+)
+parser.add(
     "--periodic",
     action="store_true",
     help="periodic boundary conditions on the lattice",
@@ -105,9 +113,9 @@ parser.add(
     help="number of milliseconds delay between each update in the animation",
 )
 parser.add(
-    "--seed",
-    default=False,
-    help="re-seed the random number generator, optionally with a known (non-zero) seed for reproducibility",
+    "--reproducible",
+    action="store_true",
+    help="If true, use a known seed for the random number generator",
 )
 
 args = parser.parse_args()

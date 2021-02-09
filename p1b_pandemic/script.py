@@ -6,7 +6,9 @@ from time import time
 
 def main():
 
-    lattice = SquareLattice(length=args.length, periodic=args.periodic)
+    lattice = SquareLattice(
+        dimensions=args.dimensions, directed=args.directed, periodic=args.periodic
+    )
 
     model = PandemicModel(
         lattice,
@@ -19,7 +21,7 @@ def main():
         critical_threshold=args.critical_threshold,
     )
 
-    model.init_state(seed_rng=args.seed)
+    model.init_state(reproducible=args.reproducible)
 
     if args.skip_animation or args.time:
         t0 = time()
@@ -28,7 +30,7 @@ def main():
 
         if args.time:
             print(
-                f"{(t1 - t0):.2g} seconds taken to perform {args.n_days} updates of a model with {args.length}^2 nodes"
+                f"{(t1 - t0):.2g} seconds taken to perform {args.n_days} updates of a model with {lattice.n_nodes} nodes"
             )
 
     else:
