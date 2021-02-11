@@ -13,8 +13,9 @@ setup(
     package=find_packages(),
     entry_points={
         "console_scripts": [
-            "p1b-evolve = p1b_pandemic.scripts.shell_script:main",
-            "p1b-percolate = p1b_pandemic.scripts.percolation:main",
+            "p1b-anim = p1b_pandemic.scripts.shell_scripts:anim",
+            "p1b-time = p1b_pandemic.scripts.shell_scripts:time",
+            "p1b-scan = p1b_pandemic.scripts.shell_scripts:scan",
         ]
     },
 )

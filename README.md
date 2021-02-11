@@ -4,6 +4,29 @@ Written as a 'computer experiment' for Physics 1B undergraduate 'labs' at UoE in
 
 # Installation
 
+Clone the repo
+```bash
+git clone https://github.com/marshrossney/p1b-pandemic.git
+cd p1b-pandemic
+```
+
+The only dependencies are the usual NumPy, SciPy, Matplotlib.
+
+Create a conda environment
+```bash
+conda create -n p1b -f environment.yml
+```
+
+Install the package
+```bash
+python -m pip install -e .
+```
+
+If you want to run things from the command line you'll also need Configargsparse:
+```bash
+conda install configargparse
+```
+
 If you're running the Jupyter notebook on University of Edinburgh's Notable servers, ...
 
 # Usage

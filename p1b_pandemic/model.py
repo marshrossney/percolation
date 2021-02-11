@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib as mpl
+from matplotlib import colors, animation
 from sys import maxsize
 from pathlib import Path
 
@@ -461,19 +461,19 @@ class PandemicModel:
 
         image = ax.imshow(
             self.state,
-            norm=mpl.colors.Normalize(vmin=0, vmax=self.recovery_time),
+            norm=colors.Normalize(vmin=0, vmax=self.recovery_time),
             zorder=0,
         )
         overlay = ax.imshow(
             self.immune,
-            cmap=mpl.colors.ListedColormap(
+            cmap=colors.ListedColormap(
                 ["#66666600", "#666666"]
             ),  # [transparent, grey]
-            norm=mpl.colors.Normalize(vmin=0, vmax=1),
+            norm=colors.Normalize(vmin=0, vmax=1),
             zorder=1,
         )
         day_counter = ax.annotate(
-            text=f"Day 0",
+            f"Day 0",
             xy=(0, -0.11),
             xycoords="axes fraction",
         )
@@ -487,13 +487,13 @@ class PandemicModel:
             day_counter.set_text(f"Day {t}")
             return image, overlay, day_counter
 
-        animation = mpl.animation.FuncAnimation(
+        ani = animation.FuncAnimation(
             fig, loop, frames=n_days + 1, interval=interval, repeat=False, blit=True
         )
 
         if outpath is not None:
             outpath = Path(outpath)
             outpath.mkdir(parents=True, exist_ok=True)
-            animation.save(outpath / "animation.gif")
+            ani.save(outpath / "animation.gif")
 
-        return animation
+        return ani
