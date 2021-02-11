@@ -10,7 +10,7 @@ class SquareLattice:
     down, but not along the diagonals)."""
 
     def __init__(
-        self, dimensions: tuple, n_connections: int = 4, periodic: bool = False
+        self, dimensions: tuple = (25, 25), n_connections: int = 1, periodic: bool = False
     ):
         self.dimensions = dimensions
         self.n_connections = n_connections

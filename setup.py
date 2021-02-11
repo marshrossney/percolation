@@ -14,7 +14,7 @@ setup(
     entry_points={
         "console_scripts": [
             "p1b-evolve = p1b_pandemic.scripts.shell_script:main",
-            "p1b-scan = p1b_pandemic.scripts.parameter_scan:main",
+            "p1b-percolate = p1b_pandemic.scripts.percolation:main",
         ]
     },
 )

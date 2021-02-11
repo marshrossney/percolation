@@ -32,8 +32,6 @@ class PandemicModel:
         with all other travelling nodes at any given time.
     nucleus_size: int
         Linear size (side length) of the initial nucleus (square) of infected nodes.
-        Alternatively, a negative number means that the initial state will have a line
-        of infected nodes on one side, instead of a nucleus.
 
     Notes
     -----
@@ -157,6 +155,8 @@ class PandemicModel:
         lattice, taking the immune nodes into account."""
         if type(new_value) is not int:
             raise TypeError("Please provide an integer for the nucleus size.")
+        if new_value < 1:
+            raise ValueError("Please provide a positive number for the nucleus size.")
         if (new_value ** 2) / self.lattice.n_nodes + self.vaccine_frac > 1:
             raise ValueError(
                 f"Not enough nodes on the lattice to support a nucleus of this size with this vaccine fraction."
@@ -265,7 +265,7 @@ class PandemicModel:
         # If there are no infected nodes, just continue to save time
         if self._infected_time_series[-1] == 0:
             self._update_time_series()
-            return 0 
+            return 0
 
         # Update array of immune nodes with those that are about to recover
         if self.recovered_are_immune:
@@ -297,7 +297,6 @@ class PandemicModel:
         self._update_time_series()
 
         return len(i_transmissions)
-
 
     # ----------------------------------------------------------------------------------------
     #                                                                       | Public methods |
@@ -351,13 +350,15 @@ class PandemicModel:
             Number of updates.
         """
         if type(n_days) is not int:
-            raise TypeError("Please provide an integer for the number of days to evolve.")
+            raise TypeError(
+                "Please provide an integer for the number of days to evolve."
+            )
         if n_days < 1:
             raise ValueError("Please enter a positive number of days.")
 
         for day in range(n_days):
             _ = self._update()
-    
+
     def evolve_until_percolated(self):
         """Evolve until percolation occurs or transmission halts. Percolation is defined
         as one or more nodes on the 'far boundary' being infected. Transmission halting
@@ -378,6 +379,18 @@ class PandemicModel:
             if days_simulated % 10 == 0:
                 if self.has_percolated:
                     break
+
+    def estimate_percolation_prob(self, repeats=25):
+        """Loops over evolve_until_percolated and returns the fraction of simulations
+        which percolated."""
+        num = 0
+        for rep in range(repeats):
+            self.init_state(reproducible=False)
+            self.evolve_until_percolated()
+            num += int(self.has_percolated)
+
+        frac = num / repeats
+        return frac
 
     # ----------------------------------------------------------------------------------------
     #                                                                        | Visualisation |
@@ -429,7 +442,7 @@ class PandemicModel:
         else:
             plt.show()
 
-    def animate(self, n_days, interval=25, outpath=None):
+    def animate(self, n_days=25, interval=25, outpath=None):
         """Evolves the model for `n_steps` iterations and produces an animation.
 
         Inputs
@@ -443,9 +456,13 @@ class PandemicModel:
             as 'animation.gif'.
         """
         if type(n_days) is not int:
-            raise TypeError("Please provide an integer for the number of days to animate.")
+            raise TypeError(
+                "Please provide an integer for the number of days to animate."
+            )
         if n_days < 1:
-            raise ValueError("Please enter a positive number of days for the animation.")
+            raise ValueError(
+                "Please enter a positive number of days for the animation."
+            )
 
         fig, ax = plt.subplots()
         ax.set_axis_off()
