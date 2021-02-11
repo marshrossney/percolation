@@ -21,7 +21,9 @@ class PandemicModel:
         Probability of an infected node transmitting the virus to a susceptible contact
         upon a single refresh of the model.
     vaccine_frac: float
-        Fraction of nodes that are initially flagged as immune against the virus.
+        Fraction of nodes that are initially flagged as immune against the virus. Note
+        that this is interpreted as a probability associated with each node, so the
+        actual number of vaccinated nodes will fluctuate.
     recovery_time: int
         Number of time steps before an infected node is considered to have recovered,
         and is no longer able to spread the infection.
@@ -187,11 +189,6 @@ class PandemicModel:
         return self.lattice.lexi_to_cart(self._immune)
 
     @property
-    def n_vaccinated(self):
-        """Number of nodes that have been flagged as vaccinated."""
-        return int(self.vaccine_frac * self.lattice.n_nodes)
-
-    @property
     def infected_time_series(self):
         """Numpy array containing the fraction of nodes that are infected, which is appended
         to as the model is evolved forwards."""
@@ -324,16 +321,11 @@ class PandemicModel:
         nucleus_mask = self.lattice.get_nucleus_mask(nucleus_size=self.nucleus_size)
         self._state[nucleus_mask] = self.recovery_time
 
-        # Generate vaccinated nodes, avoiding the initially infected ones
-        i_vaccinated = self._rng.choice(
-            np.arange(self.lattice.n_nodes)[~self._state.astype(bool)],
-            size=self.n_vaccinated,  # empty array if zero!
-            replace=False,
-        )
-
         # Create mask for vaccinated nodes with same shape as state
-        self._immune = np.full(self.lattice.n_nodes, False)
-        self._immune[i_vaccinated] = True
+        self._immune = np.logical_and(
+            self._rng.random(self._state.size) < self.vaccine_frac,  # rand < prob
+            ~self._state.astype(bool),  # not part of initial nucleus
+        )
 
         # Reset time series' to empty lists then append initial conditions
         self._infected_time_series = []

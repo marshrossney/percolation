@@ -17,6 +17,10 @@ def logistic(x, loc, steepness):
     return 1 / (1 + np.exp(steepness * (x - loc)))
 
 
+def alternative(x, inner_power, outer_power):
+    return 1 - (1 - (1 - x) ** inner_power) ** outer_power
+
+
 def parameter_scan(
     model,
     parameter="vaccine_frac",
@@ -61,12 +65,14 @@ def parameter_scan(
 
     percolation_fraction = np.array(percolation_fraction)
 
-    # Errors are the largest of Poisson and statistical
-    std_errors = np.sqrt((percolation_fraction * (1 - percolation_fraction)) / repeats)
-    poisson_errors = 1.0 / np.sqrt(repeats)
-    errors = np.fmax(std_errors, poisson_errors)
+    errors = np.fmax(
+        1 / repeats,
+        np.sqrt((percolation_fraction * (1 - percolation_fraction)) / repeats),
+    )
+    errors = np.sqrt(values * (1 - values) / repeats)
 
     # Fit logistic curve to data
+
     popt, pcov = optim.curve_fit(
         logistic,
         xdata=values,
@@ -80,6 +86,17 @@ def parameter_scan(
     e_loc, e_steepness = np.sqrt(pcov.diagonal())
     print(f"Transition occurs at at {loc} +/- {e_loc}")
     print(f"Steepness parameter is {steepness} +/- {e_steepness}")
+
+    """popt, pcov = optim.curve_fit(
+        alternative,
+        xdata=values,
+        ydata=percolation_fraction,
+        sigma=errors,
+        p0=model.lattice.dimensions,
+        bounds=((0, 0), (np.inf, np.inf)),
+    )
+    print(popt)
+    """
 
     # Modify error bars for plot so that they don't fall outside [0, 1]
     errors_above = errors.copy()
@@ -114,6 +131,7 @@ def parameter_scan(
 
     fit_x = np.linspace(values.min(), values.max(), 1000)
     fit_values = logistic(fit_x, loc=loc, steepness=steepness)
+    # fit_values = alternative(fit_x, *popt)
     ax.plot(
         fit_x,
         fit_values,
