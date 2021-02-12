@@ -1,8 +1,6 @@
-# P1B pandemic 'laboratory'
+# P1B percolation 'laboratory'
 
-A toy model of a pandemic that is in reality a percolation model with a lazily spun narrative revolving around cake.
-
-Written in Winter 20201 as a 'computer experiment' for Physics 1B undergraduate 'labs' at the University of Edinburgh.
+A simple percolation model intended as a 'computer experiment' for Physics 1B undergraduate labs at the University of Edinburgh, used during the Spring semester of 2021 when courses had to be delivered remotely.
 
 ## Installation
 
@@ -15,11 +13,11 @@ Launch Noteable from the Learn page and choose
 from the dropdown menu.
 Click 'Start'.
 
-In the top right corner, click '+GitRepo' and paste *https://github.com/marshrossney/p1b-pandemic* (i.e. this url) into the box labelled 'Git Repository URL'.
+In the top right corner, click '+GitRepo' and paste *https://github.com/marshrossney/p1b-percolation* (i.e. this url) into the box labelled 'Git Repository URL'.
 The 'Branch' box should say *master*.
 Click 'Clone'.
 
-Navigate to `/p1b-pandemic/laboratory/` and click on an `.ipynb` file to start the notebook.
+Navigate to `/p1b-percolation/laboratory/` and click on an `.ipynb` file to start the notebook.
 
 
 ### Local installation
@@ -27,8 +25,8 @@ Navigate to `/p1b-pandemic/laboratory/` and click on an `.ipynb` file to start t
 Clone the repo using one of the numerous options available!
 For example,
 ```bash
-git clone https://github.com/marshrossney/p1b-pandemic.git
-cd p1b-pandemic
+git clone https://github.com/marshrossney/p1b-percolation.git
+cd p1b-percolation
 ```
 
 This project has rather minimal dependencies, and should run fine with reasonably up-to-date versions of NumPy, SciPy and Matplotlib.
@@ -59,28 +57,28 @@ Students should work through the Jupyter notebooks in the `laboratory/` director
 Basic usage will look like the following.
 
 ```python
-from p1b_pandemic.lattice import SquareLattice
-from p1b_pandemic.model import PandemicModel
-from p1b_pandemic.scripts.parameter_scan import parameter_scan
+from p1b_percolation.lattice import SquareLattice
+from p1b_percolation.model import PercolationModel
+from p1b_percolation.scripts.parameter_scan import parameter_scan
 
 # Create a 100x100 lattice
 lattice = SquareLattice(dimensions=100)
 
 # Instantiate a model
-model = PandemicModel(lattice, transmission_prob=0.25, vaccine_frac=0.4)
+model = PercolationModel(lattice, frozen_prob=0.4)
 
 Have a look at how it evolves with these parameters
-model.animate(n_days=200)
+model.animate(n_steps=200)
 
 # Plot an estimate for the probability that the model 'percolates' over a
-# range of values of 'vaccine_frac'
-parameter_scan(model, parameter="vaccine_frac", values=numpy.linspace(0, 0.8, 40))
+# range of values of 'frozen_prob'
+parameter_scan(model, parameter="frozen_prob", values=numpy.linspace(0, 0.8, 40))
 ```
 
 Look at the options available by running e.g.
 ```python
 help(SquareLattice)
-help(PandemicModel)
+help(PercolationModel)
 help(parameter_scan)
 ```
 
@@ -90,11 +88,19 @@ Installing the package will install a few scripts that can be run from the comma
 At the moment these are:
 * `p1b-anim` which saves an animation as a gif
 * `p1b-scan` which runs a 'parameter scan' (ideally over the percolation transition) and produces a nice plot.
-* `p1b-time` which just runs `timeit` on a couple of things.
+* `p1b-time` which just runs `timeit` on a couple of things and is mostly just useful to me.
 
+Run e.g.
 ```bash
-p1b-pandemic -c input.yml
+p1b-anim --help
 ```
+to see what arguments are required, or possible, to run the script.
+
+You can supply arguments via the command line, but it's probably easier to store them in a configuration file, labelled `input.yml` below.
+```bash
+p1b-scan -c input.yml
+```
+See the examples at `p1b-percolation/examples/` for some basic input files.
 
 ### Running the tests
 
@@ -110,7 +116,7 @@ There you go...
 
 Things I'm planning to do...
 
-* More types of lattices and graphs to use in place of the square lattice.
+* More types of lattices and networks to use in place of the square lattice.
 * More tools to analyse percolation transition.
 * More options that make it more intuitive to relate the model to a pandemic.
 

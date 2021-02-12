@@ -1,5 +1,5 @@
 import numpy as np
-from p1b_pandemic.lattice import SquareLattice
+from p1b_percolation.lattice import SquareLattice
 
 L = 6
 REFERENCE_LATTICE = np.arange(L ** 2).reshape(L, L)
@@ -10,8 +10,8 @@ def err_msg(desc, expected, got):
 
 
 class TestNeighbours:
-    def test_four_connections(self):
-        lattice = SquareLattice(dimensions=L, n_connections=4, periodic=True)
+    def test_four_links(self):
+        lattice = SquareLattice(dimensions=L, n_links=4, periodic=True)
         desc = (
             "Neighbours array does not match that expected from numpy.roll (isotropic)."
         )
@@ -30,8 +30,8 @@ class TestNeighbours:
             got, expected, err_msg=err_msg(desc, expected, got)
         )
 
-    def test_three_connections(self):
-        lattice = SquareLattice(dimensions=L, n_connections=3, periodic=True)
+    def test_three_links(self):
+        lattice = SquareLattice(dimensions=L, n_links=3, periodic=True)
         desc = "Neighbours array does not match that expected from numpy.roll (down/up/right-directed)."
         expected = np.sort(
             np.concatenate(
@@ -47,8 +47,8 @@ class TestNeighbours:
             got, expected, err_msg=err_msg(desc, expected, got)
         )
 
-    def test_two_connections(self):
-        lattice = SquareLattice(dimensions=L, n_connections=2, periodic=True)
+    def test_two_links(self):
+        lattice = SquareLattice(dimensions=L, n_links=2, periodic=True)
         desc = "Neighbours array does not match that expected from numpy.roll (down/right-directed)."
         expected = np.sort(
             np.concatenate(
@@ -64,7 +64,7 @@ class TestNeighbours:
         )
 
     def test_one_connection(self):
-        lattice = SquareLattice(dimensions=L, n_connections=1, periodic=True)
+        lattice = SquareLattice(dimensions=L, n_links=1, periodic=True)
         desc = "Neighbours array does not match that expected from numpy.roll (right-directed)."
         expected = np.sort(
             np.roll(REFERENCE_LATTICE, shift=-1, axis=1).flatten()
@@ -76,7 +76,7 @@ class TestNeighbours:
 
 
 class TestFixedBoundaries:
-    lattice = SquareLattice(dimensions=L, n_connections=4, periodic=False)
+    lattice = SquareLattice(dimensions=L, n_links=4, periodic=False)
 
     def test_top_left_corner(self):
         desc = "Wrong neighbours at top left corner (fixed boundaries)."

@@ -1,0 +1,16 @@
+# Lattice
+dimensions: [50, 200]
+n-links: 1
+
+# Model
+frozen-prob: 0.02
+
+# Evolution
+n-steps: 200
+reproducible: true
+
+# Scan
+start: 0
+stop: 0.06
+num: 25
+repeats: 100
