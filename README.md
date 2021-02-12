@@ -1,10 +1,12 @@
+# P1B pandemic 'laboratory'
+
 A toy model of a pandemic that is in reality a percolation model with a lazily spun narrative revolving around cake.
 
 Written in Winter 20201 as a 'computer experiment' for Physics 1B undergraduate 'labs' at the University of Edinburgh.
 
-# Installation
+## Installation
 
-## Installation via Noteable (for UoE students)
+### Installation via Noteable (for UoE students)
 
 Launch Noteable from the Learn page and choose
 
@@ -20,7 +22,7 @@ Click 'Clone'.
 Navigate to `/p1b-pandemic/laboratory/` and click on an `.ipynb` file to start the notebook.
 
 
-## Local installation
+### Local installation
 
 Clone the repo using one of the numerous options available!
 For example,
@@ -44,15 +46,15 @@ and then install the package there.
 python -m pip install -e .
 ```
 
-# Usage
+## Usage
 
 
-## Laboratory experiment (UoE students)
+### Laboratory experiment (UoE students)
 
 Students should work through the Jupyter notebooks in the `laboratory/` directory, referring to the lab manual for guidance (the one in this repository will not be the official one).
 
 
-## In your own scripts
+### In your own scripts
 
 Basic usage will look like the following.
 
@@ -82,7 +84,7 @@ help(PandemicModel)
 help(parameter_scan)
 ```
 
-## Command line
+### Command line
 
 Installing the package will install a few scripts that can be run from the command line.
 At the moment these are:
@@ -94,7 +96,7 @@ At the moment these are:
 p1b-pandemic -c input.yml
 ```
 
-## Running the tests
+### Running the tests
 
 Install `pytest` (included in conda environment).
 
@@ -104,7 +106,7 @@ pytest
 ```
 There you go...
 
-# To do
+## To do
 
 Things I'm planning to do...
 
@@ -112,6 +114,6 @@ Things I'm planning to do...
 * More tools to analyse percolation transition.
 * More options that make it more intuitive to relate the model to a pandemic.
 
-# Feedback
+## Queries and feedback
 
 Open a Github issue, pull request or just email me < Joe.Marsh-Rossney 'at' ed.ac.uk >.

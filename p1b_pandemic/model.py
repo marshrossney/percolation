@@ -46,8 +46,9 @@ class PandemicModel:
     def __init__(
         self,
         lattice,
-        transmission_prob=1.0,
         vaccine_frac=0.0,
+        *,
+        transmission_prob=1.0,
         recovery_time=maxsize,
         recovered_are_immune=False,
         travel_prob=0.0,
@@ -67,8 +68,8 @@ class PandemicModel:
         self.travel_prob = travel_prob
         self.nucleus_size = nucleus_size
 
-        # Initalise the model and random number generator (with a known seed)
-        self.init_state(reproducible=True)
+        # Initalise the model and random number generator
+        self.init_state(reproducible=False)
 
     # ----------------------------------------------------------------------------------------
     #                                                                     | Data descriptors |
@@ -466,9 +467,7 @@ class PandemicModel:
         )
         overlay = ax.imshow(
             self.immune,
-            cmap=colors.ListedColormap(
-                ["#66666600", "#666666"]
-            ),  # [transparent, grey]
+            cmap=colors.ListedColormap(["#66666600", "#666666"]),  # [transparent, grey]
             norm=colors.Normalize(vmin=0, vmax=1),
             zorder=1,
         )
