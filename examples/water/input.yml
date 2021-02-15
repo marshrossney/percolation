@@ -4,6 +4,7 @@ n-links: 3
 
 # Model
 frozen-prob: 0.38
+recovery-time: -1
 
 # Evolution
 n-steps: 300

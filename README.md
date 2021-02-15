@@ -17,8 +17,23 @@ In the top right corner, click '+GitRepo' and paste *https://github.com/marshros
 The 'Branch' box should say *master*.
 Click 'Clone'.
 
-Navigate to `/p1b-percolation/laboratory/` and click on an `.ipynb` file to start the notebook.
+Again in the top right corner, click 'New' and then select 'Terminal' in the drop-down menu.
+A window should appear which looks rather intimidating.
+Don't worry!
+We just need to run two commands --- you can copy and paste them from below.
+```bash
+cd p1b-percolation
+python -m pip install -e .
+```
+The second line should cause the terminal to chat to you a little bit about how it's finding the installation process, and eventually it should say `Successfully installed p1b-percolation`.
 
+You can close this window now, and close the terminal session by clicking the 'Running' tab (next to 'Files') and pressing the 'Shutdown' button.
+
+Back in the files tab, navigate to `/p1b-percolation/laboratory/` and click on an `.ipynb` file to start the notebook.
+
+#### I'm having problems with the terminal installation
+
+I'm going to make some changes very shortly which mean you don't need to install anything via the terminal.
 
 ### Local installation
 

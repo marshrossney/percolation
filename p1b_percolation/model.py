@@ -48,7 +48,7 @@ class PercolationModel:
         frozen_prob=0.0,
         *,
         transmission_prob=1.0,
-        recovery_time=maxsize,
+        recovery_time=1,
         recovered_are_frozen=False,
         shuffle_prob=0.0,
         nucleus_size=1,
@@ -111,10 +111,14 @@ class PercolationModel:
 
     @recovery_time.setter
     def recovery_time(self, new_value):
-        """Setter for recovery_time. Raises ValueError if input is less than 1."""
-        if new_value < 1:
-            raise ValueError("Please enter a recovery time of 1 or more steps.")
-        self._recovery_time = new_value
+        """Setter for recovery_time. Providing a negative number sets the recovery time
+        to be effectively infinite. Raises TypeError if input is not an int."""
+        if type(new_value) is not int:
+            raise TypeError("Please provide an integer for the recovery time")
+        if new_value < 0:
+            new_value = maxsize - 1
+        # Add one since order of update loop is to reduce step counter first
+        self._recovery_time = new_value + 1
 
     @property
     def recovered_are_frozen(self):
@@ -448,6 +452,14 @@ class PercolationModel:
                 "Please enter a positive number of steps for the animation."
             )
 
+        # For now, set cmap based on number of links
+        if self.network.n_links == 1:
+            cmap = "afmhot"
+        elif self.network.n_links == 3:
+            cmap = "seismic_r"
+        else:
+            cmap = "YlOrRd"
+
         fig, ax = plt.subplots()
         ax.set_axis_off()
 
@@ -455,6 +467,7 @@ class PercolationModel:
             self.state,
             norm=colors.Normalize(vmin=0, vmax=self.recovery_time),
             zorder=0,
+            cmap=cmap,
         )
         overlay = ax.imshow(
             self.frozen,

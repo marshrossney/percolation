@@ -1,5 +1,4 @@
 import configargparse
-from sys import maxsize
 
 parser = configargparse.ArgParser()
 
@@ -50,7 +49,7 @@ parser.add(
 parser.add(
     "--recovery-time",
     type=int,
-    default=maxsize,
+    default=1,
     help="number of time steps before a live node is considered to have recovered, and is no longer able to transmit",
 )
 
