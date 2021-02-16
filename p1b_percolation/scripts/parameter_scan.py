@@ -21,7 +21,7 @@ def alternative(x, inner_power, outer_power):
         xdata=values,
         ydata=percolation_fraction,
         sigma=errors,
-        p0=model.lattice.dimensions,
+        p0=(model.lattice.n_rows, model.lattice.n_cols),
         bounds=((0, 0), (np.inf, np.inf)),
     )
     """
@@ -30,9 +30,11 @@ def alternative(x, inner_power, outer_power):
 
 def parameter_scan(
     model,
-    parameter="frozen_prob",
-    values=np.linspace(0, 0.15, 25),
+    start,
+    stop,
+    num=25,
     repeats=25,
+    parameter="frozen_prob",
     notebook_friendly=True,
     outpath=None,
 ):
@@ -44,17 +46,23 @@ def parameter_scan(
     ------
     model: PandemicModel
         The model object.
-    parameter: str
-        The parameter to evolve. Must be an attribute of model.
-    values: iterable
-        An interable containing the values of the parameter to be looped over.
-    repeats: int
+    start: float
+        Value of the parameter at which to start the parameter scan.
+    stop: float
+        Value at which to stop the prameter scan.
+    num: int (optional)
+        Number of values, equally spaced between `start` and `stop`, to loop over.
+    repeats: int (optional)
         The number of simulations to run for each value of the parameter.
-    notebook_friendly: bool
+    parameter: str (optional)
+        The parameter to evolve. Must be an attribute of model.
+    notebook_friendly: bool (optional)
         Use tqdm bar specifically tailored for Jupyter notebooks.
-    outpath: str
+    outpath: str (optional)
         Path to directory in which to save plot.
     """
+    values = np.linspace(start, stop, num)
+
     if notebook_friendly:
         pbar = tqdm_notebook(
             total=(len(values) * repeats),
@@ -76,7 +84,7 @@ def parameter_scan(
         setattr(model, parameter, value)
 
         # Run 'repeats' simulations and record the fraction that percolate
-        percolation_fraction[i] = model.estimate_percolation_prob(repeats)
+        percolation_fraction[i] = model.estimate_percolation_prob(repeats, print_result=False)
 
         pbar.update(repeats)
 
@@ -117,7 +125,7 @@ def parameter_scan(
     ax = fig.add_subplot(spec[0])
     ax2 = fig.add_subplot(spec[1])
 
-    ax.set_title("A nice title")
+    ax.set_title("Parameter scan")
     ax.set_ylabel("Percolation fraction")
     ax2.set_ylabel("Residuals")
     ax2.set_xlabel(parameter.replace("_", " "))
@@ -142,9 +150,10 @@ def parameter_scan(
 
     # In this case we just plot the theoretical curve
     if parameter == "frozen_prob" and model.network.n_links == 1:
-        rows, cols = model.network.dimensions
-        fit_values = 1 - (1 - (1 - fit_x) ** cols) ** rows
-        residuals = percolation_fraction - (1 - (1 - (1 - values) ** cols) ** rows)
+        rm1 = model.network.n_rows - 1
+        cm1 = model.network.n_cols - 1
+        fit_values = 1 - (1 - (1 - fit_x) ** cm1) ** rm1
+        residuals = percolation_fraction - (1 - (1 - (1 - values) ** cm1) ** rm1)
         label = "theoretical probability"
 
     # Otherwise we attempt to fit a logistic curve with two parameters
@@ -162,12 +171,13 @@ def parameter_scan(
         e_loc, e_steepness = np.sqrt(pcov.diagonal())
         print(f"Transition occurs at at {loc} +/- {e_loc}")
         print(f"Steepness parameter is {steepness} +/- {e_steepness}")
+        #print(model.network.n_rows, start, stop, loc, e_loc, steepness, e_steepness)
 
         fit_values = logistic(fit_x, loc=loc, steepness=steepness)
         residuals = percolation_fraction - logistic(
             values, loc=loc, steepness=steepness
         )
-        label = (r"least squares fit")
+        label = r"least squares fit"
 
     ax.plot(
         fit_x,

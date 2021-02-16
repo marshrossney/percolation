@@ -286,7 +286,7 @@ class PercolationModel:
             i_potentials[self._rng.random(i_potentials.size) < self.transmission_prob]
         )
 
-        # Update state with new live nodes 
+        # Update state with new live nodes
         self._state[i_transmissions] = self.recovery_time
 
         # Append the latest data to the time series'
@@ -371,7 +371,7 @@ class PercolationModel:
                 if self.has_percolated:
                     break
 
-    def estimate_percolation_prob(self, repeats=25):
+    def estimate_percolation_prob(self, repeats=25, print_result=True, print_error=False):
         """Loops over evolve_until_percolated and returns the fraction of simulations
         which percolated."""
         num = 0
@@ -381,7 +381,13 @@ class PercolationModel:
             num += int(self.has_percolated)
 
         frac = num / repeats
-        return frac
+        stderr = np.sqrt(frac * (1 - frac) / repeats)
+        if print_result:
+            print(f"Fraction of the {repeats} simulations that percolated: f = {frac}")
+            if print_error:
+                print(f"Estimate of the standard error on f: sigma_f = {stderr:.2g}")
+        else:
+            return frac
 
     # ----------------------------------------------------------------------------------------
     #                                                                        | Visualisation |
@@ -430,13 +436,14 @@ class PercolationModel:
         else:
             plt.show()
 
-    def animate(self, n_steps=25, interval=25, outpath=None):
+    def animate(self, n_steps=-1, interval=25, outpath=None):
         """Evolves the model for `n_steps` iterations and produces an animation.
 
         Inputs
         ------
-        n_steps: int
-            Number of updates.
+        n_steps: int (optional)
+            Number of updates. By default, equal to the square root of the number of
+            nodes, plus 1.
         interval: int (optional)
             Number of millisconds delay between each update.
         outpath: str (optional)
@@ -448,9 +455,7 @@ class PercolationModel:
                 "Please provide an integer for the number of steps to animate."
             )
         if n_steps < 1:
-            raise ValueError(
-                "Please enter a positive number of steps for the animation."
-            )
+            n_steps = int(np.sqrt(self.network.n_nodes)) + 1
 
         # For now, set cmap based on number of links
         if self.network.n_links == 1:

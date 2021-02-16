@@ -13,8 +13,9 @@ ARGS = parser.parse_args()
 def load_model():
     """Returns loaded model."""
     lattice = SquareLattice(
-        dimensions=ARGS.dimensions,
-        n_links=ARGS.n_links,
+        n_rows=ARGS.rows,
+        n_cols=ARGS.cols,
+        n_links=ARGS.links,
         periodic=ARGS.periodic,
     )
     model = PercolationModel(
@@ -36,20 +37,20 @@ MODEL = load_model()
 
 def anim():
 
-    MODEL.animate(n_steps=ARGS.n_steps, interval=ARGS.interval, outpath=ARGS.outpath)
+    MODEL.animate(n_steps=ARGS.steps, interval=ARGS.interval, outpath=ARGS.outpath)
     MODEL.plot_sir(outpath=ARGS.outpath)
 
 
 def time():
 
     t_excl = timeit(
-        stmt="MODEL.evolve(n_steps=ARGS.n_steps)",
+        stmt="MODEL.evolve(n_steps=ARGS.steps)",
         setup="MODEL.init_state()",
         number=ARGS.repeats,
         globals=globals(),
     )
     t_incl = timeit(
-        stmt="MODEL.init_state; MODEL.evolve(n_steps=ARGS.n_steps)",
+        stmt="MODEL.init_state; MODEL.evolve(n_steps=ARGS.steps)",
         number=ARGS.repeats,
         globals=globals(),
     )
@@ -57,7 +58,7 @@ def time():
     print(
         f"""
     Number of nodes:        {MODEL.network.n_nodes}
-    Simulation length:      {ARGS.n_steps} steps
+    Simulation length:      {ARGS.steps} steps
     Number of simulations:  {ARGS.repeats}
     Timings:
         Excluding initialisation:   {t_excl:.4g} seconds    
@@ -70,9 +71,11 @@ def scan():
 
     parameter_scan(
         MODEL,
-        parameter=ARGS.parameter,
-        values=np.linspace(ARGS.start, ARGS.stop, ARGS.num),  # TODO improve
+        start=ARGS.start,
+        stop=ARGS.stop,
+        num=ARGS.num,
         repeats=ARGS.repeats,
+        parameter=ARGS.parameter,
         notebook_friendly=False,
         outpath=ARGS.outpath,
     )

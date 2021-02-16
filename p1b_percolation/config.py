@@ -2,15 +2,21 @@ import configargparse
 
 parser = configargparse.ArgParser()
 
-parser.add("-c", "--config", is_config_file=True, help="path to config file")
+parser.add("-f", "--config", is_config_file=True, help="path to config file")
 
 parser.add(
-    "-d",
-    "--dimensions",
+    "-r",
+    "--rows",
     type=int,
-    action="append",
     required=True,
-    help="number of nodes along each axis of the square lattice",
+    help="number of rows for the lattice",
+)
+parser.add(
+    "-c",
+    "--cols",
+    type=int,
+    default=None,
+    help="number of cols for the lattice, default: same as --rows",
 )
 parser.add(
     "-o",
@@ -20,26 +26,24 @@ parser.add(
     help="path to directory for output files, default: '.'",
 )
 parser.add(
-    "-n",
-    "--n-steps",
-    type=int,
-    default=100,
-    help="number of steps to evolve the model forwards",
-)
-parser.add(
     "-t",
     "--time",
     action="store_true",
     help="report the time taken to evolve the model",
 )
+
 parser.add(
-    "-f",
+    "--steps",
+    type=int,
+    default=100,
+    help="number of steps to evolve the model forwards",
+)
+parser.add(
     "--frozen-prob",
     type=float,
     default=0.0,
     help="probability for nodes to be initially flagged as frozen against the virus, default: 0",
 )
-
 parser.add(
     "--transmission-prob",
     type=float,
@@ -52,7 +56,6 @@ parser.add(
     default=1,
     help="number of time steps before a live node is considered to have recovered, and is no longer able to transmit",
 )
-
 parser.add(
     "--recovered-are-frozen",
     action="store_true",
@@ -71,7 +74,7 @@ parser.add(
     help="linear size of the initial live nucleus",
 )
 parser.add(
-    "--n-links",
+    "--links",
     type=int,
     choices=(1, 2, 3, 4),
     default=1,

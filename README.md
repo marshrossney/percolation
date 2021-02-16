@@ -77,7 +77,7 @@ from p1b_percolation.model import PercolationModel
 from p1b_percolation.scripts.parameter_scan import parameter_scan
 
 # Create a 100x100 lattice
-lattice = SquareLattice(dimensions=100)
+lattice = SquareLattice(n_rows=100, n_cols=100)
 
 # Instantiate a model
 model = PercolationModel(lattice, frozen_prob=0.4)
@@ -113,7 +113,7 @@ to see what arguments are required, or possible, to run the script.
 
 You can supply arguments via the command line, but it's probably easier to store them in a configuration file, labelled `input.yml` below.
 ```bash
-p1b-scan -c input.yml
+p1b-scan -f input.yml
 ```
 See the examples at `p1b-percolation/examples/` for some basic input files.
 

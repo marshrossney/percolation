@@ -10,9 +10,18 @@ class SquareLattice:
     down, but not along the diagonals)."""
 
     def __init__(
-        self, dimensions: tuple = (25, 25), n_links: int = 1, periodic: bool = False
+        self,
+        n_rows: int = 25,
+        n_cols: (int, None) = None,
+        n_links: int = 1,
+        periodic: bool = False,
     ):
-        self.dimensions = dimensions
+        # allow for single dimension provided by user -> equal side length
+        if n_cols == None:
+            n_cols = n_rows
+
+        self.n_rows = n_rows
+        self.n_cols = n_cols
         self.n_links = n_links
         self.periodic = periodic
 
@@ -23,37 +32,41 @@ class SquareLattice:
     #                                                                     --------------------
 
     @property
-    def dimensions(self):
-        """Number of nodes along each axis of the lattice."""
-        return self._dimensions
+    def n_rows(self):
+        """Number of rows on the lattice."""
+        return self._n_rows
 
-    @dimensions.setter
-    def dimensions(self, new_value):
-        """Setter for dimensions. If new_value is an int, set dimensions to be a 2-tuple
-        with both elements equal. Raises TypeError for inputs that are not (int, tuple,
-        float, list), and ValueError for those that are the wrong length, or are outside
-        the range [MIN_LENGTH, MAX_LENGTH]."""
-        if type(new_value) in (int, float):
-            new_value = (int(new_value), int(new_value))
-        elif type(new_value) in (tuple, list):
-            if len(new_value) == 1:
-                new_value = tuple([int(new_value[0]), int(new_value[0])])
-            elif len(new_value) == 2:
-                new_value = tuple([int(i) for i in new_value])
-            else:
-                raise ValueError(
-                    "Please provide lattice dimensions as a single integer or a 2-tuple of integers"
-                )
-        else:
-            raise TypeError(
-                "Please provide lattice dimensions as a single integer or a 2-tuple of integers"
+    @n_rows.setter
+    def n_rows(self, new_value):
+        """Setter for n_rows. Raises TypeError if non-integer input and ValueError if
+        value too low."""
+        if type(new_value) is not int:
+            raise TypeError("Please provide an integer for the number of rows.")
+        if new_value < MIN_LENGTH or new_value > MAX_LENGTH:
+            raise ValueError(
+                f"Please provide a number or rows between {MIN_LENGTH} and {MAX_LENGTH}"
             )
-        for new_dim in new_value:
-            if new_dim < MIN_LENGTH or new_dim > MAX_LENGTH:
-                raise ValueError(
-                    f"Please enter lattice dimensions beween {MIN_LENGTH} and {MAX_LENGTH}"
-                )
-        self._dimensions = new_value
+        self._n_rows = new_value
+
+        if hasattr(self, "_neighbours"):
+            self._cache_properties()  # must update neighbour lists and boundary masks
+
+    @property
+    def n_cols(self):
+        """Number of columns on the lattice."""
+        return self._n_cols
+
+    @n_cols.setter
+    def n_cols(self, new_value):
+        """Setter for n_cols. Raises TypeError if non-integer input and ValueError if
+        value too low."""
+        if type(new_value) is not int:
+            raise TypeError("Please provide an integer for the number of columns.")
+        if new_value < MIN_LENGTH or new_value > MAX_LENGTH:
+            raise ValueError(
+                f"Please provide a number or columns between {MIN_LENGTH} and {MAX_LENGTH}"
+            )
+        self._n_cols = new_value
 
         if hasattr(self, "_neighbours"):
             self._cache_properties()  # must update neighbour lists and boundary masks
@@ -105,7 +118,7 @@ class SquareLattice:
     @property
     def n_nodes(self):
         """Number of nodes on the lattice."""
-        return self.dimensions[0] * self.dimensions[1]
+        return self.n_rows * self.n_cols
 
     @property
     def neighbours(self):
@@ -163,15 +176,15 @@ class SquareLattice:
         top/bottom/left/right or the (shift, dim) tuples returned by self.links.
         Also caches the 'far' boundary mask.
         """
-        lexi_like_cart = np.arange(self.n_nodes).reshape(*self.dimensions)
+        lexi_like_cart = np.arange(self.n_nodes).reshape(self.n_rows, self.n_cols)
 
-        top_row = (lexi_like_cart // self.dimensions[0] == 0).flatten()
+        top_row = (lexi_like_cart // self.n_rows == 0).flatten()
         bottom_row = (
-            lexi_like_cart // self.dimensions[0] == self.dimensions[0] - 1
+            lexi_like_cart // self.n_rows == self.n_rows - 1
         ).flatten()
-        left_col = (lexi_like_cart % self.dimensions[1] == 0).flatten()
+        left_col = (lexi_like_cart % self.n_cols == 0).flatten()
         right_col = (
-            lexi_like_cart % self.dimensions[1] == self.dimensions[1] - 1
+            lexi_like_cart % self.n_cols == self.n_cols - 1
         ).flatten()
         all_boundaries = np.logical_or.reduce(
             (top_row, bottom_row, left_col, right_col)
@@ -202,7 +215,7 @@ class SquareLattice:
         the list of neighbours of infected nodes, we then discard all those that are already
         infected.
         """
-        lexi_like_cart = np.arange(self.n_nodes).reshape(*self.dimensions)
+        lexi_like_cart = np.arange(self.n_nodes).reshape(self.n_rows, self.n_cols)
         neighbours = np.zeros((self.n_links, self.n_nodes), dtype=int)
 
         for i, (shift, axis) in enumerate(self.links):
@@ -230,7 +243,7 @@ class SquareLattice:
         state_lexi: numpy.ndarray
             One dimensional array containing the state in lexicographic representation.
         """
-        return state_lexi.reshape(*self.dimensions)
+        return state_lexi.reshape(self.n_rows, self.n_cols)
 
     def get_boundary_mask(self, key="all"):
         """Convenience method that returns a mask that selects the nodes at one or
@@ -257,9 +270,9 @@ class SquareLattice:
             Side length of the nucleus, in nodes.
         """
         if self.n_links == 4:
-            left_edge = self.dimensions[0] // 2 - nucleus_size // 2
-            top_edge = self.dimensions[1] // 2 - nucleus_size // 2
-            mask = np.full(self.dimensions, False)
+            left_edge = self.n_rows // 2 - nucleus_size // 2
+            top_edge = self.n_cols // 2 - nucleus_size // 2
+            mask = np.full((self.n_rows, self.n_cols), False)
             mask[
                 slice(left_edge, left_edge + nucleus_size),
                 slice(top_edge, top_edge + nucleus_size),
