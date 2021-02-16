@@ -58,7 +58,8 @@ parser.add(
 )
 parser.add(
     "--recovered-are-frozen",
-    action="store_true",
+    type=bool,
+    default=True,
     help="nodes which have recovered are flagged as frozen",
 )
 parser.add(
@@ -82,14 +83,20 @@ parser.add(
 )
 parser.add(
     "--periodic",
-    action="store_false",
+    type=bool,
+    default=True,
     help="periodic boundary conditions on the lattice",
 )
 parser.add(
     "--interval",
     type=int,
-    default=25,
+    default=50,
     help="number of milliseconds delay between each update in the animation",
+)
+parser.add(
+    "--dynamic-overlay",
+    action="store_true",
+    help="updates the overlay of frozen nodes at each step in the animation",
 )
 parser.add(
     "--reproducible",

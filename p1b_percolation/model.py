@@ -49,7 +49,7 @@ class PercolationModel:
         *,
         transmission_prob=1.0,
         recovery_time=1,
-        recovered_are_frozen=False,
+        recovered_are_frozen=True,
         shuffle_prob=0.0,
         nucleus_size=1,
     ):
@@ -436,7 +436,7 @@ class PercolationModel:
         else:
             plt.show()
 
-    def animate(self, n_steps=-1, interval=25, outpath=None):
+    def animate(self, n_steps=-1, interval=50, dynamic_overlay=False, outpath=None):
         """Evolves the model for `n_steps` iterations and produces an animation.
 
         Inputs
@@ -446,6 +446,10 @@ class PercolationModel:
             nodes, plus 1.
         interval: int (optional)
             Number of millisconds delay between each update.
+        dynamic_overlay: bool (optional)
+            If True, updates the overlay of frozen nodes as well as the live nodes.
+            This is useful if you have set recovered_are_frozen and care about the
+            recovered nodes taking the same colour as the initial frozen ones.
         outpath: str (optional)
             If provided, specifies path to a directory in which the plot will be saved
             as 'animation.gif'.
@@ -486,14 +490,28 @@ class PercolationModel:
             xycoords="axes fraction",
         )
 
-        def loop(t):
+        def loop_without_overlay(t):
             if t == 0:  # otherwise the animation starts a frame late in Jupyter...
-                return (image, overlay)
+                return image, step_counter
+            _ = self._update()
+            image.set_data(self.state)
+            step_counter.set_text(f"Step {t}")
+            return image, step_counter
+
+
+        def loop_with_overlay(t):
+            if t == 0:
+                return image, overlay, step_counter
             _ = self._update()
             image.set_data(self.state)
             overlay.set_data(self.frozen)
             step_counter.set_text(f"Step {t}")
             return image, overlay, step_counter
+
+        if dynamic_overlay:
+            loop = loop_with_overlay
+        else:
+            loop = loop_without_overlay
 
         ani = animation.FuncAnimation(
             fig, loop, frames=n_steps + 1, interval=interval, repeat=False, blit=True

@@ -84,7 +84,9 @@ def parameter_scan(
         setattr(model, parameter, value)
 
         # Run 'repeats' simulations and record the fraction that percolate
-        percolation_fraction[i] = model.estimate_percolation_prob(repeats, print_result=False)
+        percolation_fraction[i] = model.estimate_percolation_prob(
+            repeats, print_result=False
+        )
 
         pbar.update(repeats)
 
@@ -152,8 +154,8 @@ def parameter_scan(
     if parameter == "frozen_prob" and model.network.n_links == 1:
         rm1 = model.network.n_rows - 1
         cm1 = model.network.n_cols - 1
-        fit_values = 1 - (1 - (1 - fit_x) ** cm1) ** rm1
-        residuals = percolation_fraction - (1 - (1 - (1 - values) ** cm1) ** rm1)
+        fit_values = 1 - (1 - (1 - fit_x) ** rm1) ** cm1
+        residuals = percolation_fraction - (1 - (1 - (1 - values) ** rm1) ** cm1)
         label = "theoretical probability"
 
     # Otherwise we attempt to fit a logistic curve with two parameters
@@ -171,7 +173,7 @@ def parameter_scan(
         e_loc, e_steepness = np.sqrt(pcov.diagonal())
         print(f"Transition occurs at at {loc} +/- {e_loc}")
         print(f"Steepness parameter is {steepness} +/- {e_steepness}")
-        #print(model.network.n_rows, start, stop, loc, e_loc, steepness, e_steepness)
+        # print(model.network.n_rows, start, stop, loc, e_loc, steepness, e_steepness)
 
         fit_values = logistic(fit_x, loc=loc, steepness=steepness)
         residuals = percolation_fraction - logistic(

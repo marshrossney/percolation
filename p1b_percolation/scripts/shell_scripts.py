@@ -37,7 +37,12 @@ MODEL = load_model()
 
 def anim():
 
-    MODEL.animate(n_steps=ARGS.steps, interval=ARGS.interval, outpath=ARGS.outpath)
+    MODEL.animate(
+        n_steps=ARGS.steps,
+        interval=ARGS.interval,
+        dynamic_overlay=ARGS.dynamic_overlay,
+        outpath=ARGS.outpath,
+    )
     MODEL.plot_sir(outpath=ARGS.outpath)
 
 

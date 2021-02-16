@@ -146,12 +146,12 @@ class SquareLattice:
         """
         if self.n_links == 4:
             return ((1, 0), (-1, 0), (1, 1), (-1, 1))
-        elif self.n_links == 3:  # exclude left links
-            return ((1, 0), (-1, 0), (-1, 1))
+        elif self.n_links == 3:  # exclude up links
+            return ((-1, 0), (1, 1), (-1, 1))
         elif self.n_links == 2:  # exclude left and up links
             return ((-1, 0), (-1, 1))
-        else:  # exclude all but right links
-            return ((-1, 1),)
+        else:  # exclude all but bottom links
+            return ((-1, 0),)
 
     @property
     def far_boundary_mask(self):
@@ -159,7 +159,7 @@ class SquareLattice:
         if self.n_links == 4:
             return self.get_boundary_mask(key="all")
         else:
-            return self.get_boundary_mask(key="right")
+            return self.get_boundary_mask(key="bottom")
 
     # ----------------------------------------------------------------------------------------
     #                                                                    | Protected methods |
@@ -178,14 +178,10 @@ class SquareLattice:
         """
         lexi_like_cart = np.arange(self.n_nodes).reshape(self.n_rows, self.n_cols)
 
-        top_row = (lexi_like_cart // self.n_rows == 0).flatten()
-        bottom_row = (
-            lexi_like_cart // self.n_rows == self.n_rows - 1
-        ).flatten()
+        top_row = (lexi_like_cart // self.n_cols == 0).flatten()
+        bottom_row = (lexi_like_cart // self.n_cols == self.n_rows - 1).flatten()
         left_col = (lexi_like_cart % self.n_cols == 0).flatten()
-        right_col = (
-            lexi_like_cart % self.n_cols == self.n_cols - 1
-        ).flatten()
+        right_col = (lexi_like_cart % self.n_cols == self.n_cols - 1).flatten()
         all_boundaries = np.logical_or.reduce(
             (top_row, bottom_row, left_col, right_col)
         )
@@ -279,4 +275,4 @@ class SquareLattice:
             ] = True
             return mask.flatten()
         else:
-            return self.get_boundary_mask(key="left")
+            return self.get_boundary_mask(key="top")

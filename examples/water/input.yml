@@ -1,17 +1,18 @@
 # Lattice
-dimensions: [50, 200]
-n-links: 3
+rows: 100
+cols: 50
+links: 3
 
 # Model
-frozen-prob: 0.38
-recovery-time: -1
+recovery-time: 5
+frozen-prob: 0.4
 
 # Evolution
-n-steps: 300
+steps: 150
 reproducible: true
 
 # Scan
-start: 0.3
-stop: 0.45
+start: 0.32
+stop: 0.44
 num: 25
-repeats: 100
+repeats: 50
