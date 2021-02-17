@@ -128,9 +128,11 @@ def parameter_scan(
     ax2 = fig.add_subplot(spec[1])
 
     ax.set_title("Parameter scan")
-    ax.set_ylabel("Percolation fraction")
+    ax.set_ylabel("Percolation fraction ($f$)")
     ax2.set_ylabel("Residuals")
     ax2.set_xlabel(parameter.replace("_", " "))
+    if parameter == "frozen_prob":
+        ax2.set_xlabel("Frozen probability ($q$)")  # this is all students will use
     ax.xaxis.set_ticklabels([])
 
     ax.errorbar(
