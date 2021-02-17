@@ -25,12 +25,6 @@ parser.add(
     default=".",
     help="path to directory for output files, default: '.'",
 )
-parser.add(
-    "-t",
-    "--time",
-    action="store_true",
-    help="report the time taken to evolve the model",
-)
 
 parser.add(
     "--steps",

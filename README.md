@@ -61,10 +61,9 @@ python -m pip install -e .
 
 ## Usage
 
-
 ### Laboratory experiment (UoE students)
 
-Students should work through the Jupyter notebooks in the `laboratory/` directory, referring to the lab manual for guidance (the one in this repository will not be the official one).
+Students should work through the Jupyter notebooks in the `laboratory/` directory.
 
 
 ### In your own scripts
@@ -87,13 +86,11 @@ model.animate(n_steps=200)
 
 # Plot an estimate for the probability that the model 'percolates' over a
 # range of values of 'frozen_prob'
-parameter_scan(model, parameter="frozen_prob", values=numpy.linspace(0, 0.8, 40))
+parameter_scan(model, parameter="frozen_prob", start=0.1, stop=0.7, num=25, repeats=25)
 ```
 
 Look at the options available by running e.g.
 ```python
-help(SquareLattice)
-help(PercolationModel)
 help(parameter_scan)
 ```
 
@@ -121,7 +118,7 @@ See the examples at `p1b-percolation/examples/` for some basic input files.
 
 Install `pytest` (included in conda environment).
 
-In the repository, run
+In the root of the repository, run
 ```bash
 pytest
 ```
