@@ -74,14 +74,14 @@ class SquareLattice:
     @property
     def n_links(self):
         """Number of links per node. The directions of the links are not randomised,
-        so for n_links < 4 the lattice becomes anisotropic. Visually, this looks like
+        so for n_links < 4 the network becomes anisotropic. Visually, this looks like
         the following:
 
             n_links             4           3           2           1
 
                                 ^           ^
-            directions      < - | - >       | - >       | - >       - >
-                                v           V           V
+            directions      < - | - >   < - | - >       | - >       |
+                                v           v           v           v
         """
         return self._n_links
 

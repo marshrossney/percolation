@@ -48,7 +48,7 @@ class PercolationModel:
         frozen_prob=0.0,
         *,
         transmission_prob=1.0,
-        recovery_time=1,
+        recovery_time=-1,
         recovered_are_frozen=True,
         shuffle_prob=0.0,
         nucleus_size=1,
@@ -463,7 +463,7 @@ class PercolationModel:
 
         # For now, set cmap based on number of links
         if self.network.n_links == 1:
-            cmap = "afmhot"
+            cmap = "viridis"
         elif self.network.n_links == 3:
             cmap = "seismic_r"
         else:
