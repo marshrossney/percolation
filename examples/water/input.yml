@@ -5,7 +5,7 @@ links: 3
 
 # Model
 recovery-time: 5
-frozen-prob: 0.4
+inert-prob: 0.4
 
 # Evolution
 steps: 150

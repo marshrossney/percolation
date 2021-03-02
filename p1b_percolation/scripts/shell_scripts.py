@@ -20,10 +20,10 @@ def load_model():
     )
     model = PercolationModel(
         lattice,
-        frozen_prob=ARGS.frozen_prob,
+        inert_prob=ARGS.inert_prob,
         transmission_prob=ARGS.transmission_prob,
         recovery_time=ARGS.recovery_time,
-        recovered_are_frozen=ARGS.recovered_are_frozen,
+        recovered_are_inert=ARGS.recovered_are_inert,
         shuffle_prob=ARGS.shuffle_prob,
         nucleus_size=ARGS.nucleus_size,
     )

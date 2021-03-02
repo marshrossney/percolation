@@ -4,7 +4,7 @@ cols: 50
 links: 1
 
 # Model
-frozen-prob: 0.04
+inert-prob: 0.04
 
 # Evolution
 steps: 101

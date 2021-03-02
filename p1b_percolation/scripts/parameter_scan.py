@@ -34,7 +34,7 @@ def parameter_scan(
     stop,
     num=25,
     repeats=25,
-    parameter="frozen_prob",
+    parameter="inert_prob",
     notebook_friendly=True,
     outpath=None,
 ):
@@ -65,13 +65,13 @@ def parameter_scan(
 
     if notebook_friendly:
         pbar = tqdm_notebook(
-            total=(len(values) * repeats),
-            desc=f"Simulations completed",
+            total=(num * repeats),
+            desc="Simulations completed",
         )
     else:
         pbar = tqdm(
-            total=(len(values) * repeats),
-            desc=f"Simulations completed",
+            total=(num * repeats),
+            desc="Simulations completed",
         )
 
     # --------------------------------------------------------------------------------
@@ -84,7 +84,7 @@ def parameter_scan(
         setattr(model, parameter, value)
 
         # Run 'repeats' simulations and record the fraction that percolate
-        percolation_fraction[i] = model.estimate_percolation_prob(
+        percolation_fraction[i], _ = model.estimate_percolation_prob(
             repeats, print_result=False
         )
 
@@ -95,7 +95,7 @@ def parameter_scan(
     # --------------------------------------------------------------------------------
     #                                                               | Compute errors |
     #                                                               ------------------
-    if parameter == "frozen_prob" and model.network.n_links == 1:
+    if parameter == "inert_prob" and model.network.n_links == 1:
         # In the case of one connection per node, the SE is known in terms of Bernoulli prob
         errors = np.sqrt(values * (1 - values) / repeats)
     else:
@@ -131,8 +131,8 @@ def parameter_scan(
     ax.set_ylabel("Percolation fraction ($f$)")
     ax2.set_ylabel("Residuals")
     ax2.set_xlabel(parameter.replace("_", " "))
-    if parameter == "frozen_prob":
-        ax2.set_xlabel("Frozen probability ($q$)")  # this is all students will use
+    if parameter == "inert_prob":
+        ax2.set_xlabel("Inert probability ($q$)")  # this is all students will use
     ax.xaxis.set_ticklabels([])
 
     ax.errorbar(
@@ -153,7 +153,7 @@ def parameter_scan(
     fit_x = np.linspace(values.min(), values.max(), 1000)
 
     # In this case we just plot the theoretical curve
-    if parameter == "frozen_prob" and model.network.n_links == 1:
+    if parameter == "inert_prob" and model.network.n_links == 1:
         rm1 = model.network.n_rows - 1
         cm1 = model.network.n_cols - 1
         fit_values = 1 - (1 - (1 - fit_x) ** rm1) ** cm1

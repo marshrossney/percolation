@@ -4,7 +4,7 @@ cols: 150
 links: 4
 
 # Model
-frozen-prob: 0.38
+inert-prob: 0.38
 recovery-time: 21
 
 # Initialisation

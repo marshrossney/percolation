@@ -17,17 +17,17 @@ class PercolationModel:
     ------
     network: lattice.SquareLattice
         The underlying network upon which we perform the percolation simulation.
-    frozen_prob: float
-        Probability that any given node will be initially flagged as frozen i.e. not
-        susceptible.
+    inert_prob: float
+        Probability that any given node will be initially flagged as 'inert' i.e. not
+        susceptible. In the notebooks, this is `q`.
     transmission_prob: float
         Probability of a 'live' node transmitting to a susceptible node it is connected
         to upon a single refresh of the model.
     recovery_time: int
         Number of time steps before a live node is considered to have recovered, and is
         no longer able to transmit.
-    recovered_are_frozen: bool
-        Nodes which have recovered are flagged as frozen.
+    recovered_are_inert: bool
+        Nodes which have recovered are flagged as inert.
     shuffle_prob: float
         Probability for any given node to shuffle positions with all other 'shuffling'
         nodes at any given time.
@@ -45,11 +45,11 @@ class PercolationModel:
     def __init__(
         self,
         network,
-        frozen_prob=0.0,
+        inert_prob=0.0,
         *,
         transmission_prob=1.0,
         recovery_time=-1,
-        recovered_are_frozen=True,
+        recovered_are_inert=True,
         shuffle_prob=0.0,
         nucleus_size=1,
     ):
@@ -60,10 +60,10 @@ class PercolationModel:
         self._network = network
 
         # Set parameters which users can modify
-        self.frozen_prob = frozen_prob
+        self.inert_prob = inert_prob
         self.transmission_prob = transmission_prob
         self.recovery_time = recovery_time
-        self.recovered_are_frozen = recovered_are_frozen
+        self.recovered_are_inert = recovered_are_inert
         self.shuffle_prob = shuffle_prob
         self.nucleus_size = nucleus_size
 
@@ -74,18 +74,18 @@ class PercolationModel:
     #                                                                     | Data descriptors |
     #                                                                     --------------------
     @property
-    def frozen_prob(self):
-        """Probability that any given node will be initially flagged as frozen i.e. not
+    def inert_prob(self):
+        """Probability that any given node will be initially flagged as inert i.e. not
         susceptible."""
-        return self._frozen_prob
+        return self._inert_prob
 
-    @frozen_prob.setter
-    def frozen_prob(self, new_value):
-        """Setter for frozen_prob. Raises ValueError for inputs that are less than zero or
+    @inert_prob.setter
+    def inert_prob(self, new_value):
+        """Setter for inert_prob. Raises ValueError for inputs that are less than zero or
         greater than one."""
         if new_value < 0 or new_value > 1:
-            raise ValueError(f"Please enter a frozen probability between 0 and 1.")
-        self._frozen_prob = new_value
+            raise ValueError(f"Please enter a inert probability between 0 and 1.")
+        self._inert_prob = new_value
 
     @property
     def transmission_prob(self):
@@ -121,16 +121,16 @@ class PercolationModel:
         self._recovery_time = new_value + 1
 
     @property
-    def recovered_are_frozen(self):
-        "Nodes which have recovered are flagged as frozen."
-        return self._recovered_are_frozen
+    def recovered_are_inert(self):
+        "Nodes which have recovered are flagged as inert."
+        return self._recovered_are_inert
 
-    @recovered_are_frozen.setter
-    def recovered_are_frozen(self, new_flag):
-        """Setter for recovered_are_frozen. Raises TypeError if input is not a bool."""
+    @recovered_are_inert.setter
+    def recovered_are_inert(self, new_flag):
+        """Setter for recovered_are_inert. Raises TypeError if input is not a bool."""
         if type(new_flag) is not bool:
-            raise TypeError("Please enter True/False for recovered_are_frozen.")
-        self._recovered_are_frozen = new_flag
+            raise TypeError("Please enter True/False for recovered_are_inert.")
+        self._recovered_are_inert = new_flag
 
     @property
     def shuffle_prob(self):
@@ -184,10 +184,10 @@ class PercolationModel:
         return self.network.lexi_to_cart(self._state)
 
     @property
-    def frozen(self):
-        """Currently frozen nodes, represented as a 2d boolean array where True means the
-        node is frozen."""
-        return self.network.lexi_to_cart(self._frozen)
+    def inert(self):
+        """Currently inert nodes, represented as a 2d boolean array where True means the
+        node is inert."""
+        return self.network.lexi_to_cart(self._inert)
 
     @property
     def live_time_series(self):
@@ -198,15 +198,15 @@ class PercolationModel:
     @property
     def susceptible_time_series(self):
         """Numpy array containing the fraction of nodes that are susceptible, i.e.
-        neither frozen nor live, which is appended to as the model is evolved forwards.
+        neither inert nor live, which is appended to as the model is evolved forwards.
         """
         return np.array(self._susceptible_time_series) / self.network.n_nodes
 
     @property
-    def frozen_time_series(self):
-        """Numpy array containing the fraction of nodes that are frozen. The list is
+    def inert_time_series(self):
+        """Numpy array containing the fraction of nodes that are inert. The list is
         appended to as the model is evolved forwards."""
-        return np.array(self._frozen_time_series) / self.network.n_nodes
+        return np.array(self._inert_time_series) / self.network.n_nodes
 
     @property
     def has_percolated(self):
@@ -231,10 +231,10 @@ class PercolationModel:
         """Helper function that appends information about the current state of the model to
         lists containing time series'."""
         n_live = self._state.astype(bool).sum()
-        n_frozen = self._frozen.astype(bool).sum()
+        n_inert = self._inert.astype(bool).sum()
         self._live_time_series.append(n_live)
-        self._frozen_time_series.append(n_frozen)
-        self._susceptible_time_series.append(self.network.n_nodes - n_live - n_frozen)
+        self._inert_time_series.append(n_inert)
+        self._susceptible_time_series.append(self.network.n_nodes - n_live - n_inert)
 
     def _shuffle_nodes(self):
         """Shuffle a subset of the nodes based on drawing uniform random numbers and
@@ -243,7 +243,7 @@ class PercolationModel:
         if i_shuffle.size > 0:
             i_shuffle_permuted = self._rng.permutation(i_shuffle)
             self._state[i_shuffle] = self._state[i_shuffle_permuted]
-            self._frozen[i_shuffle] = self._frozen[i_shuffle_permuted]
+            self._inert[i_shuffle] = self._inert[i_shuffle_permuted]
 
     def _update(self):
         """Performs a single update of the model.
@@ -263,9 +263,9 @@ class PercolationModel:
             self._update_time_series()
             return 0
 
-        # Update array of frozen nodes with those that are about to recover
-        if self.recovered_are_frozen:
-            np.logical_or(self._frozen, (self._state == 1), out=self._frozen)
+        # Update array of inert nodes with those that are about to recover
+        if self.recovered_are_inert:
+            np.logical_or(self._inert, (self._state == 1), out=self._inert)
 
         # Update state by reducing the 'days' counter
         np.clip(self._state - 1, a_min=0, a_max=None, out=self._state)
@@ -277,7 +277,7 @@ class PercolationModel:
         i_potentials = i_contacts[
             np.logical_and(
                 ~self._state.astype(bool),  # neither already live...
-                ~self._frozen.astype(bool),  # ...nor frozen
+                ~self._inert.astype(bool),  # ...nor inert
             )[i_contacts]
         ]
 
@@ -300,8 +300,8 @@ class PercolationModel:
 
     def init_state(self, reproducible=False):
         """Initialises the state of the model by first creating the initial nucleus or
-        line of live nodes, and then randomly generating frozen nodes with a probability
-        equal to self.frozen_prob.
+        line of live nodes, and then randomly generating inert nodes with a probability
+        equal to self.inert_prob.
 
         Inputs
         ------
@@ -320,16 +320,16 @@ class PercolationModel:
         nucleus_mask = self.network.get_nucleus_mask(nucleus_size=self.nucleus_size)
         self._state[nucleus_mask] = self.recovery_time
 
-        # Create mask for frozen nodes with same shape as state
-        self._frozen = np.logical_and(
-            self._rng.random(self._state.size) < self.frozen_prob,  # rand < prob
+        # Create mask for inert nodes with same shape as state
+        self._inert = np.logical_and(
+            self._rng.random(self._state.size) < self.inert_prob,  # rand < prob
             ~self._state.astype(bool),  # not part of initial nucleus
         )
 
         # Reset time series' to empty lists then append initial conditions
         self._live_time_series = []
         self._susceptible_time_series = []
-        self._frozen_time_series = []
+        self._inert_time_series = []
         self._update_time_series()
 
     def evolve(self, n_steps):
@@ -371,9 +371,26 @@ class PercolationModel:
                 if self.has_percolated:
                     break
 
-    def estimate_percolation_prob(self, repeats=25, print_result=True, print_error=False):
+    def estimate_percolation_prob(self, repeats=25, print_result=True):
         """Loops over evolve_until_percolated and returns the fraction of simulations
-        which percolated."""
+        which percolated.
+
+        Input
+        -----
+        repeats: int (optional)
+            Number of simulations to run
+        print_result: bool (optional)
+            Pretty-print the mean and standard error on the estimate of the percolation
+            fraction.
+        
+        Returns
+        -------
+        frac: float
+            Fraction of the `repeats` simulations that percolated.
+        stderr: float
+            Estimate of the standard error on the above estimate of the percolation
+            probability.
+        """
         num = 0
         for rep in range(repeats):
             self.init_state(reproducible=False)
@@ -381,13 +398,22 @@ class PercolationModel:
             num += int(self.has_percolated)
 
         frac = num / repeats
-        stderr = np.sqrt(frac * (1 - frac) / repeats)
+        stderr = np.sqrt(frac * (1 - frac) / (repeats - 1))
+        
         if print_result:
-            print(f"Fraction of the {repeats} simulations that percolated: f = {frac}")
-            if print_error:
-                print(f"Estimate of the standard error on f: sigma_f = {stderr:.2g}")
+            print(f"{num} out of {repeats} simulations percolated: f = {frac}")
+            print(f"Estimate of the standard error on f: sigma_f = {stderr:.2g}")
         else:
-            return frac
+            return frac, stderr
+
+    def loop_estimate_percolation_prob(self, repeats=25, loop=20):
+        """Loops over estimate_percolation_prob, just to hide some confusing code from
+        students."""
+        print("f\tsigma_f")
+        for _ in range(loop):
+            f, sigma_f = self.estimate_percolation_prob(repeats, print_result=False)
+            print(f"{f:.3f}\t{sigma_f:.3f}")
+        print("finished!")
 
     # ----------------------------------------------------------------------------------------
     #                                                                        | Visualisation |
@@ -397,7 +423,7 @@ class PercolationModel:
         """Plots the time evolution of the model.
 
         More specifically, plots the evolution of the fraction of nodes that are (a)
-        susceptible, (b) live, and (c) frozen. This can be seen as a 'susceptible-
+        susceptible, (b) live, and (c) inert. This can be seen as a 'susceptible-
         infected-removed' plot if we interpret the simulation as an epidem model.
 
         Inputs
@@ -421,9 +447,9 @@ class PercolationModel:
             label="infected (live)",
         )
         ax.plot(
-            self.frozen_time_series,
+            self.inert_time_series,
             color="grey",
-            label="immune (frozen)",
+            label="immune (inert)",
         )
 
         ax.legend()
@@ -447,9 +473,9 @@ class PercolationModel:
         interval: int (optional)
             Number of millisconds delay between each update.
         dynamic_overlay: bool (optional)
-            If True, updates the overlay of frozen nodes as well as the live nodes.
-            This is useful if you have set recovered_are_frozen and care about the
-            recovered nodes taking the same colour as the initial frozen ones.
+            If True, updates the overlay of inert nodes as well as the live nodes.
+            This is useful if you have set recovered_are_inert and care about the
+            recovered nodes taking the same colour as the initial inert ones.
         outpath: str (optional)
             If provided, specifies path to a directory in which the plot will be saved
             as 'animation.gif'.
@@ -479,7 +505,7 @@ class PercolationModel:
             cmap=cmap,
         )
         overlay = ax.imshow(
-            self.frozen,
+            self.inert,
             cmap=colors.ListedColormap(["#66666600", "#666666"]),  # [transparent, grey]
             norm=colors.Normalize(vmin=0, vmax=1),
             zorder=1,
@@ -498,13 +524,12 @@ class PercolationModel:
             step_counter.set_text(f"Step {t}")
             return image, step_counter
 
-
         def loop_with_overlay(t):
             if t == 0:
                 return image, overlay, step_counter
             _ = self._update()
             image.set_data(self.state)
-            overlay.set_data(self.frozen)
+            overlay.set_data(self.inert)
             step_counter.set_text(f"Step {t}")
             return image, overlay, step_counter
 

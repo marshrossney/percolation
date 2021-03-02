@@ -33,10 +33,10 @@ parser.add(
     help="number of steps to evolve the model forwards",
 )
 parser.add(
-    "--frozen-prob",
+    "--inert-prob",
     type=float,
     default=0.0,
-    help="probability for nodes to be initially flagged as frozen against the virus, default: 0",
+    help="probability for nodes to be initially flagged as inert against the virus, default: 0",
 )
 parser.add(
     "--transmission-prob",
@@ -51,10 +51,10 @@ parser.add(
     help="number of time steps before a live node is considered to have recovered, and is no longer able to transmit",
 )
 parser.add(
-    "--recovered-are-frozen",
+    "--recovered-are-inert",
     type=bool,
     default=True,
-    help="nodes which have recovered are flagged as frozen",
+    help="nodes which have recovered are flagged as inert",
 )
 parser.add(
     "--shuffle-prob",
@@ -90,7 +90,7 @@ parser.add(
 parser.add(
     "--dynamic-overlay",
     action="store_true",
-    help="updates the overlay of frozen nodes at each step in the animation",
+    help="updates the overlay of inert nodes at each step in the animation",
 )
 parser.add(
     "--reproducible",
@@ -101,8 +101,8 @@ parser.add(
 parser.add(
     "--parameter",
     type=str,
-    default="frozen_prob",
-    help="Parameter to scan over, default: 'frozen_prob'",
+    default="inert_prob",
+    help="Parameter to scan over, default: 'inert_prob'",
 )
 parser.add(
     "--start",
