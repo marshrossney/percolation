@@ -4,7 +4,7 @@ from matplotlib import colors, animation
 from sys import maxsize
 from pathlib import Path
 
-from p1b_percolation.lattice import SquareLattice
+from percolation.lattice import SquareLattice
 
 
 plt.style.use(Path(__file__).resolve().parent / "p1b.mplstyle")

@@ -1,10 +1,10 @@
 import numpy as np
 from timeit import timeit
 
-from p1b_percolation.lattice import SquareLattice
-from p1b_percolation.model import PercolationModel
-from p1b_percolation.config import parser
-from p1b_percolation.scripts.parameter_scan import parameter_scan
+from percolation.lattice import SquareLattice
+from percolation.model import PercolationModel
+from percolation.config import parser
+from percolation.scripts.parameter_scan import parameter_scan
 
 
 ARGS = parser.parse_args()

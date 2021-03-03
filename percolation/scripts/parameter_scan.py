@@ -15,19 +15,6 @@ def logistic(x, loc, steepness):
     return 1 / (1 + np.exp(steepness * (x - loc)))
 
 
-def alternative(x, inner_power, outer_power):
-    """popt, pcov = optim.curve_fit(
-        alternative,
-        xdata=values,
-        ydata=percolation_fraction,
-        sigma=errors,
-        p0=(model.lattice.n_rows, model.lattice.n_cols),
-        bounds=((0, 0), (np.inf, np.inf)),
-    )
-    """
-    return 1 - (1 - (1 - x) ** inner_power) ** outer_power
-
-
 def parameter_scan(
     model,
     start,
@@ -173,9 +160,9 @@ def parameter_scan(
 
         loc, steepness = popt
         e_loc, e_steepness = np.sqrt(pcov.diagonal())
-        print(f"Mid-point of transition is q_0 = {loc} +/- {e_loc}")
-        print(f"Steepness parameter is lambda = {steepness} +/- {e_steepness}")
-        #print(model.network.n_rows, start, stop, loc, e_loc, steepness, e_steepness)
+        # print(f"Mid-point of transition is q_0 = {loc} +/- {e_loc}")
+        # print(f"Steepness parameter is lambda = {steepness} +/- {e_steepness}")
+        print(model.network.n_rows, loc, e_loc, steepness, e_steepness)
 
         fit_values = logistic(fit_x, loc=loc, steepness=steepness)
         residuals = percolation_fraction - logistic(
@@ -222,6 +209,6 @@ def parameter_scan(
     if outpath is not None:
         outpath = Path(outpath)
         outpath.mkdir(parents=True, exist_ok=True)
-        fig.savefig(outpath / "parameter_scan.png")
+        fig.savefig(outpath / f"parameter_scan_L{model.network.n_rows}.png")
     else:
         plt.show()

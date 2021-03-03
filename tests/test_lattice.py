@@ -1,5 +1,5 @@
 import numpy as np
-from p1b_percolation.lattice import SquareLattice
+from percolation.lattice import SquareLattice
 
 L = 6
 REFERENCE_LATTICE = np.arange(L ** 2).reshape(L, L)
