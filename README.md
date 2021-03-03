@@ -15,5 +15,4 @@ In the top right corner, click '+GitRepo' and paste *https://github.com/marshros
 The 'Branch' box should say **p1b-labs**, **NOT master**.
 Click 'Clone'.
 
-Back in the files tab, navigate to `/percolation/laboratory/` and click on an `.ipynb` file to start the notebook.
-
+Enter the folder `percolation/` and click on an `.ipynb` file to start the notebook.

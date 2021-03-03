@@ -160,9 +160,8 @@ def parameter_scan(
 
         loc, steepness = popt
         e_loc, e_steepness = np.sqrt(pcov.diagonal())
-        # print(f"Mid-point of transition is q_0 = {loc} +/- {e_loc}")
-        # print(f"Steepness parameter is lambda = {steepness} +/- {e_steepness}")
-        print(model.network.n_rows, loc, e_loc, steepness, e_steepness)
+        print(f"Mid-point of transition is q_0 = {loc} +/- {e_loc}")
+        print(f"Steepness parameter is lambda = {steepness} +/- {e_steepness}")
 
         fit_values = logistic(fit_x, loc=loc, steepness=steepness)
         residuals = percolation_fraction - logistic(
