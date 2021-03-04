@@ -84,7 +84,12 @@ def parameter_scan(
     #                                                               ------------------
     if parameter == "inert_prob" and model.network.n_links == 1:
         # In the case of one connection per node, the SE is known in terms of Bernoulli prob
-        errors = np.sqrt(values * (1 - values) / repeats)
+        r = (
+            model.network.n_rows - 1
+        )  # NOTE: still -1 even with adjustment in lattice constructor
+        c = model.network.n_cols
+        p = 1 - (1 - (1 - values) ** r) ** c
+        errors = np.sqrt(p * (1 - p) / repeats)
     else:
         # Otherwise errors are SE on the sample mean for a Binomial distribution
         errors = np.sqrt((percolation_fraction * (1 - percolation_fraction)) / repeats)
@@ -94,7 +99,7 @@ def parameter_scan(
     errors = np.fmax(errors, 1 / repeats)  # TODO this needs justifying
 
     # Modify error bars for plot so that they don't fall outside [0, 1]
-    errors_above = errors.copy()
+    """errors_above = errors.copy()
     errors_below = errors.copy()
     upper_cap = percolation_fraction + errors
     lower_cap = percolation_fraction - errors
@@ -103,6 +108,8 @@ def parameter_scan(
     errors_above[cap_above_one] -= upper_cap[cap_above_one] - 1
     errors_below[cap_below_zero] += lower_cap[cap_below_zero]
     errors_for_plot = np.stack((errors_below, errors_above), axis=0)
+    """
+    errors_for_plot = errors
 
     # --------------------------------------------------------------------------------
     #                                                                    | Plot data |
@@ -141,10 +148,10 @@ def parameter_scan(
 
     # In this case we just plot the theoretical curve
     if parameter == "inert_prob" and model.network.n_links == 1:
-        rm1 = model.network.n_rows - 1
-        cm1 = model.network.n_cols - 1
-        fit_values = 1 - (1 - (1 - fit_x) ** rm1) ** cm1
-        residuals = percolation_fraction - (1 - (1 - (1 - values) ** rm1) ** cm1)
+        r = model.network.n_rows - 1
+        c = model.network.n_cols
+        fit_values = 1 - (1 - (1 - fit_x) ** r) ** c
+        residuals = percolation_fraction - (1 - (1 - (1 - values) ** r) ** c)
         label = "theoretical probability"
 
     # Otherwise we attempt to fit a logistic curve with two parameters

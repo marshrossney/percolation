@@ -14,13 +14,14 @@ def go_to_sleep(seconds=20):
                 print(".", end="")
             sleep(1)
             t += 1
+        print()
     except KeyboardInterrupt:
         print()
         print(f"You woke the kernel after {t} seconds.")
 
     finally:
-        print()
         print("The kernel is awake.")
+
 
 def _plot_residuals(ax, y):
     ax.errorbar(
@@ -41,6 +42,7 @@ def _plot_residuals(ax, y):
         0, color="r", linestyle="--", linewidth="2.0", label="best-fit curve", zorder=1
     )
 
+
 def residuals_examples(n_points=50):
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
     ax1.set_ylabel("Residuals")
@@ -52,10 +54,10 @@ def residuals_examples(n_points=50):
 
     ax1.set_title("linearly increasing residuals")
     _plot_residuals(ax1, y0 + np.linspace(-3, 3, n_points))
-    
+
     ax2.set_title("oscillating residuals")
     _plot_residuals(ax2, y0 + 3 * np.sin(np.linspace(-10, 10, n_points)))
-    
+
     ax3.set_title("no obvious structure")
     _plot_residuals(ax3, y0)
 
