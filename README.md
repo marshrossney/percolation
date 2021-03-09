@@ -1,4 +1,4 @@
-# P1B percolation 'laboratory'
+# P1B Experiment 3: Percolation model
 
 A simple percolation model intended as a 'computer experiment' for Physics 1B undergraduate labs at the University of Edinburgh, used during the Spring semester of 2021 when courses had to be delivered remotely.
 
@@ -12,7 +12,7 @@ from the dropdown menu.
 Click 'Start'.
 
 In the top right corner, click '+GitRepo' and paste *https://github.com/marshrossney/percolation* (i.e. this url) into the box labelled 'Git Repository URL'.
-The 'Branch' box should say **p1b-labs**, **NOT master**.
+The 'Branch' box should say **p1b**, **NOT master**.
 Click 'Clone'.
 
-Enter the folder `percolation/` and click on an `.ipynb` file to start the notebook.
+Enter the folder `percolation/` and click on `Introduction.ipynb` file to start the introductory notebook.
