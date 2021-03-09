@@ -402,17 +402,17 @@ class PercolationModel:
         
         if print_result:
             print(f"{num} out of {repeats} simulations percolated: f = {frac}")
-            print(f"Estimate of the standard error on f: sigma_f = {stderr:.2g}")
+            print(f"Estimate of the standard error on f: delta_f = {stderr:.2g}")
         else:
             return frac, stderr
 
     def loop_estimate_percolation_prob(self, repeats=25, loop=20):
         """Loops over estimate_percolation_prob, just to hide some confusing code from
         students."""
-        print("f\tsigma_f")
+        print("f\tdelta_f")
         for _ in range(loop):
-            f, sigma_f = self.estimate_percolation_prob(repeats, print_result=False)
-            print(f"{f:.3f}\t{sigma_f:.3f}")
+            f, delta_f = self.estimate_percolation_prob(repeats, print_result=False)
+            print(f"{f:.3f}\t{delta_f:.3f}")
         print("finished!")
 
     # ----------------------------------------------------------------------------------------
