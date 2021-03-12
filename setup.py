@@ -5,7 +5,7 @@ with open("README.md") as f:
 
 setup(
     name="percolation",
-    version=0.1,
+    version=1.0,
     description="Simple percolation model based on a square lattice",
     author="Joe Marsh Rossney",
     url="https://github.com/marshrossney/percolation",

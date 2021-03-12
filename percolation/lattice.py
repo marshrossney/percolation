@@ -20,11 +20,6 @@ class SquareLattice:
         if n_cols == None:
             n_cols = n_rows
 
-        # NOTE: temporary fix so that percolation probability involves powers of
-        # n_rows, not (n_rows - 1) which could potentially confuse.
-        if n_links < 4:
-            n_rows += 1
-
         self.n_rows = n_rows
         self.n_cols = n_cols
         self.n_links = n_links
