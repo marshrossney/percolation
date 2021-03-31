@@ -12,7 +12,7 @@ class SquareLattice:
     def __init__(
         self,
         n_rows: int = 25,
-        n_cols: (int, None) = None,
+        n_cols: int = None,
         n_links: int = 1,
         periodic: bool = False,
     ):
