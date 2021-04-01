@@ -12,6 +12,9 @@ class BooleanNetwork:
         Connections betwen nodes are stored in an sparse adjecency matrix.
     """
     def __init__(self, size: int, edges: List[BooleanEdge], directed=True):
+        self.create_adjecency_matrix(size, edges, directed)
+    
+    def create_adjecency_matrix(self, size: int, edges: List[BooleanEdge], directed=True):
         self.shape = (size, )
 
         data = len(edges) * [True]
@@ -25,10 +28,7 @@ class BooleanNetwork:
             rows += columns_copy
 
         self.matrix = csc_matrix((data, (rows, columns)), shape=2*self.shape, dtype=np.bool8)
-        
-    @property
-    def adj_matrix(self):
-        return self.matrix
+
 
 class WeightedNetwork:
     def __init__(self, size: int, edges: List[WeightedEdge], directed=True):

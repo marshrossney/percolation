@@ -270,24 +270,27 @@ class PercolationModel:
         # Update state by reducing the 'days' counter
         np.clip(self._state - 1, a_min=0, a_max=None, out=self._state)
 
-        # Indices corresponding to neighbours ('contacts') of live nodes
-        i_contacts = self.network.neighbours[self._state.astype(bool)].flatten()
+        # Mask of nodes with contact with a live node
+        mask_contacts = self._state.astype(np.bool8) * self.network.matrix
+
+        # Mask of 'susceptible' contacts who can potentially be transmitted to
+        mask_potentials = np.logical_and(
+                            np.logical_and(
+                                ~self._state.astype(bool),
+                                ~self._inert.astype(bool)),
+                            mask_contacts)
 
         # Indices of 'susceptible' contacts who can potentially be transmitted to
-        i_potentials = i_contacts[
-            np.logical_and(
-                ~self._state.astype(bool),  # neither already live...
-                ~self._inert.astype(bool),  # ...nor inert
-            )[i_contacts]
-        ]
+        i_potentials = np.where(mask_potentials == True)[0]
 
         # Indices of nodes to which the virus has just been transmitted
-        i_transmissions = np.unique(
-            i_potentials[self._rng.random(i_potentials.size) < self.transmission_prob]
-        )
+        i_transmissions = i_potentials[self._rng.random(i_potentials.size) <= self.transmission_prob]
+
 
         # Update state with new live nodes
         self._state[i_transmissions] = self.recovery_time
+
+        
 
         # Append the latest data to the time series'
         self._update_time_series()
