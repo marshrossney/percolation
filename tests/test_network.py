@@ -1,4 +1,4 @@
-from percolation.networks import BooleanNetwork, BooleanEdge, WeightedNetwork, WeightedEdge
+from percolation.networks import BooleanNetwork, BooleanEdge
 from typing import List
 import numpy as np
 

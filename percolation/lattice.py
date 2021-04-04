@@ -51,7 +51,7 @@ class SquareLattice(BooleanNetwork):
             )
         self._n_rows = new_value
 
-        if hasattr(self, "_neighbours"):
+        if hasattr(self, "_matrix"):
             self._cache()  # must update neighbour lists and boundary masks
 
     @property
@@ -71,7 +71,7 @@ class SquareLattice(BooleanNetwork):
             )
         self._n_cols = new_value
 
-        if hasattr(self, "_neighbours"):
+        if hasattr(self, "_matrix"):
             self._cache()  # must update neighbour lists and boundary masks
 
     @property
@@ -98,7 +98,7 @@ class SquareLattice(BooleanNetwork):
             raise ValueError("Please provide a number of links between 1 and 4")
         self._n_links = new_value
 
-        if hasattr(self, "_neighbours"):
+        if hasattr(self, "_matrix"):
             self._cache()
 
     @property
@@ -163,7 +163,7 @@ class SquareLattice(BooleanNetwork):
         """Cache boundary masks and neighbours in correct order."""
         self._cache_boundary_masks()
         edges = self._generate_network_edges()
-        super().__init__(self.n_nodes, edges)
+        super().create_adjecency_matrix(self.n_nodes, edges)
 
     def _cache_boundary_masks(self):
         """Cache the masks that are used to select boundary nodes. The four boundaries
@@ -197,22 +197,25 @@ class SquareLattice(BooleanNetwork):
 
     def _generate_network_edges(self):
         """
-            Caches the array of neighbours to avoid repeated calculations.
+            Generates list of edges of the lattice
         """
         lexi_like_cart = np.arange(self.n_nodes).reshape(self.n_rows, self.n_cols)
 
         edges: List[BooleanEdge] = list()
 
-        for i, (shift, axis) in enumerate(self.links):
+        for shift, axis in self.links:
             # Roll the cartesian array and flatten for 1d array of neighbours
             neighbours = np.roll(lexi_like_cart, shift, axis=axis).flatten()
 
             if not self.periodic:
+                # add only edges which aren't masked
                 mask = self.get_boundary_mask(key=(shift, axis))
-                neighbours = neighbours[~mask]
-
-            edges += enumerate(neighbours)
-
+                for i, (neighbour, mask_value) in enumerate(zip(neighbours, mask)):
+                    if not mask_value:
+                        edges.append((i, neighbour))
+            else:
+                edges += enumerate(neighbours)
+        
         return edges
 
     # ----------------------------------------------------------------------------------------
@@ -246,7 +249,7 @@ class SquareLattice(BooleanNetwork):
         infections at day 0. This can be either
 
             * isotropic case -> a nucleus_size^2 area in the center of the lattice
-            * anisotropic case -> a line at the left boundary
+            * anisotropic case -> a line at the top boundary
 
         Inputs
         ------

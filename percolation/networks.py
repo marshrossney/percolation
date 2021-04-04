@@ -27,24 +27,8 @@ class BooleanNetwork:
             columns += rows
             rows += columns_copy
 
-        self.matrix = csc_matrix((data, (rows, columns)), shape=2*self.shape, dtype=np.bool8)
+        self._matrix = csc_matrix((data, (rows, columns)), shape=2*self.shape, dtype=np.bool8)
 
-
-class WeightedNetwork:
-    def __init__(self, size: int, edges: List[WeightedEdge], directed=True):
-        self.shape = (size, )
-
-        data, rows, columns = zip(*edges)
-        
-        self.directed = directed
-        if not self.directed:
-            data *= 2
-            columns_copy = columns[:]
-            columns += rows
-            rows += columns_copy
-
-        self.matrix = csc_matrix((data, (rows, columns)), shape=2*self.shape, dtype=np.float32)
-        
     @property
-    def adj_matrix(self):
-        return self.matrix
+    def matrix(self):
+        return self._matrix
