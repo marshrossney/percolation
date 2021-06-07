@@ -1,10 +1,12 @@
+from typing import List
+from percolation.networks import BooleanEdge, BooleanNetwork
 import numpy as np
 
 MIN_LENGTH = 2
 MAX_LENGTH = 800
 
 
-class SquareLattice:
+class SquareLattice(BooleanNetwork):
     """Class containing attributes and methods related to a Square lattice in which nodes
     are coupled to their nearest neighbours along the Cartesian axes (i.e. left/right/up/
     down, but not along the diagonals)."""
@@ -12,7 +14,7 @@ class SquareLattice:
     def __init__(
         self,
         n_rows: int = 25,
-        n_cols: (int, None) = None,
+        n_cols: int = None,
         n_links: int = 1,
         periodic: bool = False,
     ):
@@ -25,7 +27,8 @@ class SquareLattice:
         self.n_links = n_links
         self.periodic = periodic
 
-        self._cache_properties()
+        self._cache()
+        
 
     # ----------------------------------------------------------------------------------------
     #                                                                     | Data descriptors |
@@ -48,8 +51,8 @@ class SquareLattice:
             )
         self._n_rows = new_value
 
-        if hasattr(self, "_neighbours"):
-            self._cache_properties()  # must update neighbour lists and boundary masks
+        if hasattr(self, "_matrix"):
+            self._cache()  # must update neighbour lists and boundary masks
 
     @property
     def n_cols(self):
@@ -68,8 +71,8 @@ class SquareLattice:
             )
         self._n_cols = new_value
 
-        if hasattr(self, "_neighbours"):
-            self._cache_properties()  # must update neighbour lists and boundary masks
+        if hasattr(self, "_matrix"):
+            self._cache()  # must update neighbour lists and boundary masks
 
     @property
     def n_links(self):
@@ -95,8 +98,8 @@ class SquareLattice:
             raise ValueError("Please provide a number of links between 1 and 4")
         self._n_links = new_value
 
-        if hasattr(self, "_neighbours"):
-            self._cache_properties()
+        if hasattr(self, "_matrix"):
+            self._cache()
 
     @property
     def periodic(self):
@@ -119,15 +122,6 @@ class SquareLattice:
     def n_nodes(self):
         """Number of nodes on the lattice."""
         return self.n_rows * self.n_cols
-
-    @property
-    def neighbours(self):
-        """Array containing the coordinates of the nearest neighbours for each node,
-        in the lexicographic representation. The first dimension corresponds to lattice
-        nodes in lexicographic representation. The second dimension of the array represents
-        the direction (right, left, up, down).
-        """
-        return self._neighbours
 
     @property
     def links(self):
@@ -165,10 +159,11 @@ class SquareLattice:
     #                                                                    | Protected methods |
     #                                                                    ---------------------
 
-    def _cache_properties(self):
+    def _cache(self):
         """Cache boundary masks and neighbours in correct order."""
         self._cache_boundary_masks()
-        self._cache_neighbours()
+        edges = self._generate_network_edges()
+        super().create_adjecency_matrix(self.n_nodes, edges)
 
     def _cache_boundary_masks(self):
         """Cache the masks that are used to select boundary nodes. The four boundaries
@@ -200,32 +195,28 @@ class SquareLattice:
             (-1, 1): right_col,
         }
 
-    def _cache_neighbours(self):
-        """Caches the array of neighbours to avoid repeated calculations.
-
-        Notes:
-        ------
-        In the case of non-periodic boundaries, the neighbours that would otherwise wrap
-        around the lattice are set to be the indices of the nodes themselves (i.e. they act
-        as their own neighbour). This doesn't lead to strange behaviour since, after taking
-        the list of neighbours of infected nodes, we then discard all those that are already
-        infected.
+    def _generate_network_edges(self):
+        """
+            Generates list of edges of the lattice
         """
         lexi_like_cart = np.arange(self.n_nodes).reshape(self.n_rows, self.n_cols)
-        neighbours = np.zeros((self.n_links, self.n_nodes), dtype=int)
 
-        for i, (shift, axis) in enumerate(self.links):
+        edges: List[BooleanEdge] = list()
+
+        for shift, axis in self.links:
             # Roll the cartesian array and flatten for 1d array of neighbours
-            neighbours[i] = np.roll(lexi_like_cart, shift, axis=axis).flatten()
+            neighbours = np.roll(lexi_like_cart, shift, axis=axis).flatten()
 
             if not self.periodic:
-                np.putmask(
-                    neighbours[i],
-                    mask=self.get_boundary_mask(key=(shift, axis)),
-                    values=np.arange(self.n_nodes),  # equivalent to zero shift
-                )
-
-        self._neighbours = neighbours.transpose()  # shape (n_nodes, n_links)
+                # add only edges which aren't masked
+                mask = self.get_boundary_mask(key=(shift, axis))
+                for i, (neighbour, mask_value) in enumerate(zip(neighbours, mask)):
+                    if not mask_value:
+                        edges.append((i, neighbour))
+            else:
+                edges += enumerate(neighbours)
+        
+        return edges
 
     # ----------------------------------------------------------------------------------------
     #                                                                       | Public methods |
@@ -258,7 +249,7 @@ class SquareLattice:
         infections at day 0. This can be either
 
             * isotropic case -> a nucleus_size^2 area in the center of the lattice
-            * anisotropic case -> a line at the left boundary
+            * anisotropic case -> a line at the top boundary
 
         Inputs
         ------
