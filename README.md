@@ -12,7 +12,7 @@ from the dropdown menu.
 Click 'Start'.
 
 In the top right corner, click '+GitRepo' and paste *https://github.com/marshrossney/percolation* (i.e. this url) into the box labelled 'Git Repository URL'.
-The 'Branch' box should say **p1b**, **NOT master**.
+The 'Branch' box should say **p1b-2022**, **NOT master or p1b**.
 Click 'Clone'.
 
 Enter the folder `percolation/` and click on `Introduction.ipynb` file to start the introductory notebook.
